@@ -1,6 +1,6 @@
 // Service worker: приложение работает офлайн.
 // При обновлении файлов увеличьте номер версии ниже.
-const VERSION = 'produkty-v1';
+const VERSION = 'produkty-v2';
 const FILES = [
   './',
   './index.html',
