@@ -452,11 +452,9 @@ function renderList() {
     $('#list').innerHTML = h;
     return;
   }
-  let doneCount = 0;
   for (const g of gs) {
     if (!g.items.length) continue;
     const left = g.items.filter(i => !i.done).length;
-    doneCount += g.items.length - left;
     const rows = g.items.map(i => `
       <li class="row${i.done ? ' done' : ''}" data-id="${i.id}" style="--c:${g.color}">
         <button class="check" type="button" aria-label="Куплено: ${esc(i.name)}" aria-pressed="${i.done}">${ICONS.check}</button>
@@ -465,8 +463,26 @@ function renderList() {
       </li>`).join('');
     h += `<section class="group">${g.name ? `<h2><i class="dot" style="--c:${g.color}"></i>${esc(g.name)}<small>${left ? left : 'всё куплено'}</small></h2>` : ''}<ul>${rows}</ul></section>`;
   }
-  if (doneCount) h += `<button class="clear" type="button" data-act="clear">Убрать купленные (${doneCount})</button>`;
+  h += '<div id="clearBox"></div>';
   $('#list').innerHTML = h;
+  renderClear();
+}
+
+/* лёгкие обновления без перестройки списка: строки при этом не двигаются */
+function renderClear() {
+  const box = $('#clearBox');
+  if (!box) return;
+  let n = 0;
+  getGroups(state.view).forEach(g => g.items.forEach(i => { if (i.done) n++; }));
+  box.innerHTML = n ? `<button class="clear" type="button" data-act="clear">Убрать купленные (${n})</button>` : '';
+}
+function updateGroupCounts() {
+  $$('#list .group').forEach(g => {
+    const small = $('h2 small', g);
+    if (!small) return;
+    const left = g.querySelectorAll('.row:not(.done)').length;
+    small.textContent = left ? left : 'всё куплено';
+  });
 }
 
 function renderPick() {
@@ -628,9 +644,12 @@ function toggle(id, row) {
   save();
   row.classList.toggle('done', it.done);
   row.querySelector('.check').setAttribute('aria-pressed', it.done);
+  // Строка остаётся на месте, чтобы следующий тап попал точно в нужный продукт.
+  // Купленное уйдёт вниз при следующем обновлении списка.
   renderChrome();
-  clearTimeout(renderTimer);
-  renderTimer = setTimeout(render, 400);   // даём увидеть галочку, затем купленное уходит вниз
+  renderFilters();
+  updateGroupCounts();
+  renderClear();
 }
 
 function clearDone() {
