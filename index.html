@@ -849,7 +849,6 @@ $('#pick').addEventListener('click', e => {
   if (!b) return;
   if (b.dataset.act === 'newstore') { openStores(true); return; }
   if (b.dataset.store) { pick = pick === b.dataset.store ? null : b.dataset.store; renderPick(); }
-  $('#name').focus();
 });
 
 $('#undo').addEventListener('click', () => {
