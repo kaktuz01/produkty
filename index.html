@@ -161,6 +161,10 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
 .ing .nm{flex:1;font-size:17px}
 .ing .q2{color:var(--muted);font-size:15px;font-weight:500}
 
+.kbd dialog .hint{display:none}
+.kbd dialog .sheet{padding-top:16px}
+.kbd dialog .sheet h3{margin-bottom:10px;font-size:20px}
+.kbd .f textarea{min-height:110px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -212,10 +216,10 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
 
 <!-- Продукт -->
 <dialog id="editDlg" aria-label="Изменить продукт">
-  <form class="sheet" id="editForm">
+  <form class="sheet" id="editForm" autocomplete="off">
     <h3>Продукт</h3>
-    <label class="f">Название<input id="eName" type="text" maxlength="80" required></label>
-    <label class="f">Количество или заметка<input id="eQty" type="text" maxlength="60" placeholder="Например, 2 л или без лактозы"></label>
+    <label class="f">Название<input id="eName" type="text" autocomplete="off" maxlength="80" required></label>
+    <label class="f">Количество или заметка<input id="eQty" type="text" autocomplete="off" maxlength="60" placeholder="Например, 2 л или без лактозы"></label>
     <div class="f" style="margin-bottom:0">Магазин</div>
     <div class="chips" id="eStores"></div>
     <div class="actions">
@@ -231,8 +235,8 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
     <h3>Магазины</h3>
     <p class="hint">Необязательно: если указать магазин, список разделится на группы. Продукты без магазина остаются в общей группе.</p>
     <div id="storeList"></div>
-    <form id="storeForm">
-      <input class="inp" id="sName" type="text" maxlength="40" placeholder="Название магазина" aria-label="Название нового магазина">
+    <form id="storeForm" autocomplete="off">
+      <input class="inp" id="sName" type="text" autocomplete="off" autocorrect="off" maxlength="40" placeholder="Название магазина" aria-label="Название нового магазина">
       <button class="btn" type="submit">Добавить</button>
     </form>
     <div class="actions"><button class="btn primary" type="button" id="storesDone" autofocus>Готово</button></div>
@@ -253,10 +257,10 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
 
 <!-- Рецепт: правка -->
 <dialog id="recipeEditDlg" aria-label="Правка рецепта">
-  <form class="sheet" id="recipeForm">
+  <form class="sheet" id="recipeForm" autocomplete="off">
     <h3 id="reHead">Новый рецепт</h3>
-    <label class="f">Название<input id="reTitle" type="text" maxlength="60" required placeholder="Например, паста с фаршем"></label>
-    <label class="f">Ингредиенты<textarea id="reText" rows="7" maxlength="3000" placeholder="Макароны, 400 г&#10;Фарш, 300 г&#10;Томатная паста&#10;Сыр"></textarea></label>
+    <label class="f">Название<input id="reTitle" type="text" autocomplete="off" maxlength="60" required placeholder="Например, паста с фаршем"></label>
+    <label class="f">Ингредиенты<textarea id="reText" autocomplete="off" rows="7" maxlength="3000" placeholder="Макароны, 400 г&#10;Фарш, 300 г&#10;Томатная паста&#10;Сыр"></textarea></label>
     <p class="hint">По одному в строке. Количество можно написать после запятой: «Фарш, 300 г».</p>
     <div class="actions">
       <button class="btn danger" type="button" id="reDel" hidden>Удалить</button>
@@ -709,7 +713,7 @@ function renderStores() {
   box.innerHTML = state.stores.map(s => `
     <div class="srow" data-id="${s.id}">
       <button type="button" class="swatch" style="--c:${s.color}" data-act="color" aria-label="Сменить цвет"></button>
-      <input value="${esc(s.name)}" data-act="rename" maxlength="40" aria-label="Название магазина">
+      <input value="${esc(s.name)}" data-act="rename" autocomplete="off" maxlength="40" aria-label="Название магазина">
       <button type="button" class="x" data-act="del" aria-label="Удалить магазин"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </div>`).join('');
 }
@@ -987,7 +991,31 @@ function fit() {
   const below = (c.hidden ? 0 : c.offsetHeight) + t.offsetHeight;
   document.documentElement.style.setProperty('--toast-b', (below + 10) + 'px');
 }
-function onViewport() { fit(); window.scrollTo(0, 0); }
+function keyboardOpen() { return !!vv && (window.innerHeight - vv.height > 120); }
+function fitDialogs() {
+  const kb = keyboardOpen();
+  document.documentElement.classList.toggle('kbd', kb);
+  $$('dialog[open]').forEach(d => {
+    if (kb) {
+      d.style.top = (vv.offsetTop + 8) + 'px';
+      d.style.bottom = 'auto';
+      d.style.margin = '0 auto';
+      d.style.maxHeight = (vv.height - 16) + 'px';
+      d.style.borderRadius = '28px';
+    } else {
+      d.style.top = d.style.bottom = d.style.margin = d.style.maxHeight = d.style.borderRadius = '';
+    }
+  });
+}
+function onViewport() { fit(); fitDialogs(); if (!document.querySelector('dialog[open]')) window.scrollTo(0, 0); }
+document.addEventListener('focusin', e => {
+  if (!e.target.closest || !e.target.closest('dialog')) return;
+  const el = e.target;
+  setTimeout(() => { fitDialogs(); el.scrollIntoView({ block: 'nearest' }); }, 350);
+});
+document.addEventListener('focusout', e => {
+  if (e.target.closest && e.target.closest('dialog')) setTimeout(fitDialogs, 200);
+});
 if (vv) { vv.addEventListener('resize', onViewport); vv.addEventListener('scroll', onViewport); }
 window.addEventListener('resize', fit);
 $('#name').addEventListener('focus', () => { document.body.classList.add('kb'); setTimeout(onViewport, 300); });
