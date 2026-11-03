@@ -27,8 +27,9 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-text-size-adjust:100%}
-body{height:var(--app-h,100dvh);overflow:hidden}
+body{height:100dvh;overflow:hidden}
 button{font-family:inherit;color:inherit;cursor:pointer}
+button,input,textarea,label,[data-recipe]{touch-action:manipulation}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 #app{position:relative;height:100%;max-width:640px;margin:0 auto;display:flex;flex-direction:column}
@@ -114,7 +115,6 @@ ul{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:22
 .addbtn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
 
 .tabbar{display:flex;gap:4px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line)}
-body.kb .tabbar{display:none}
 .tab{flex:1;min-width:0;min-height:54px;padding:6px 0;border:0;border-radius:14px;background:transparent;color:var(--muted);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px;font-weight:700}
 .tab svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -161,10 +161,6 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
 .ing .nm{flex:1;font-size:17px}
 .ing .q2{color:var(--muted);font-size:15px;font-weight:500}
 
-.kbd dialog .hint{display:none}
-.kbd dialog .sheet{padding-top:16px}
-.kbd dialog .sheet h3{margin-bottom:10px;font-size:20px}
-.kbd .f textarea{min-height:110px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -189,7 +185,7 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
   <form class="composer" id="add" autocomplete="off">
     <div class="pick" id="pick"></div>
     <div class="field">
-      <input id="name" type="text" placeholder="Что купить?" enterkeyhint="done" autocapitalize="sentences" autocorrect="on" maxlength="80" aria-label="Название продукта">
+      <input id="item" type="text" placeholder="Что купить?" enterkeyhint="done" autocapitalize="sentences" autocorrect="on" maxlength="80" aria-label="Название продукта">
       <button class="addbtn" type="submit" aria-label="Добавить в список">
         <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
       </button>
@@ -218,7 +214,7 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
 <dialog id="editDlg" aria-label="Изменить продукт">
   <form class="sheet" id="editForm" autocomplete="off">
     <h3>Продукт</h3>
-    <label class="f">Название<input id="eName" type="text" autocomplete="off" maxlength="80" required></label>
+    <label class="f">Название<input id="eItem" type="text" autocomplete="off" maxlength="80" required></label>
     <label class="f">Количество или заметка<input id="eQty" type="text" autocomplete="off" maxlength="60" placeholder="Например, 2 л или без лактозы"></label>
     <div class="f" style="margin-bottom:0">Магазин</div>
     <div class="chips" id="eStores"></div>
@@ -236,7 +232,7 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
     <p class="hint">Необязательно: если указать магазин, список разделится на группы. Продукты без магазина остаются в общей группе.</p>
     <div id="storeList"></div>
     <form id="storeForm" autocomplete="off">
-      <input class="inp" id="sName" type="text" autocomplete="off" autocorrect="off" maxlength="40" placeholder="Название магазина" aria-label="Название нового магазина">
+      <input class="inp" id="sShop" type="text" autocomplete="off" autocorrect="off" maxlength="40" placeholder="Название магазина" aria-label="Название нового магазина">
       <button class="btn" type="submit">Добавить</button>
     </form>
     <div class="actions"><button class="btn primary" type="button" id="storesDone" autofocus>Готово</button></div>
@@ -599,7 +595,7 @@ function addItem(raw) {
   if (!r.ok) return false;
   save(); render();
   const row = document.querySelector(`.row[data-id="${r.item.id}"]`);
-  if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  if (row) row.scrollIntoView({ block: 'nearest' });
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
   return true;
 }
@@ -634,7 +630,7 @@ function toggle(id, row) {
   row.querySelector('.check').setAttribute('aria-pressed', it.done);
   renderChrome();
   clearTimeout(renderTimer);
-  renderTimer = setTimeout(render, 550);   // даём увидеть галочку, затем купленное уходит вниз
+  renderTimer = setTimeout(render, 400);   // даём увидеть галочку, затем купленное уходит вниз
 }
 
 function clearDone() {
@@ -700,7 +696,7 @@ function openEdit(id) {
   const it = state.items.find(i => i.id === id);
   if (!it) return;
   editingId = id; editStore = it.store;
-  $('#eName').value = it.name;
+  $('#eItem').value = it.name;
   $('#eQty').value = it.qty;
   renderEditStores();
   editDlg.showModal();
@@ -721,7 +717,7 @@ function openStores(fromPick) {
   fromComposer = !!fromPick;
   renderStores();
   storesDlg.showModal();
-  if (fromPick) $('#sName').focus();
+  if (fromPick) $('#sShop').focus();
 }
 
 /* рецепты */
@@ -790,7 +786,7 @@ async function importData(file) {
 /* ---------- события ---------- */
 $('#add').addEventListener('submit', e => {
   e.preventDefault();
-  const input = $('#name');
+  const input = $('#item');
   if (addItem(input.value)) input.value = '';
   input.focus();
 });
@@ -876,7 +872,7 @@ $('#editForm').addEventListener('submit', e => {
   e.preventDefault();
   const it = state.items.find(i => i.id === editingId);
   if (it) {
-    const name = $('#eName').value.trim().replace(/\s+/g, ' ');
+    const name = $('#eItem').value.trim().replace(/\s+/g, ' ');
     if (name) it.name = name;
     it.qty = $('#eQty').value.trim();
     it.store = editStore;
@@ -897,7 +893,7 @@ $('#eDel').addEventListener('click', () => {
 /* лист «Магазины» */
 $('#storeForm').addEventListener('submit', e => {
   e.preventDefault();
-  const input = $('#sName');
+  const input = $('#sShop');
   const name = input.value.trim().replace(/\s+/g, ' ');
   if (!name) return;
   if (state.stores.some(s => s.name.toLowerCase() === name.toLowerCase())) { toast('Такой магазин уже есть'); return; }
@@ -908,7 +904,7 @@ $('#storeForm').addEventListener('submit', e => {
   if (fromComposer) pick = store.id;
   input.value = '';
   save(); render(); renderStores();
-  if (fromComposer) { storesDlg.close(); $('#name').focus(); }
+  if (fromComposer) { storesDlg.close(); $('#item').focus(); }
 });
 $('#storeList').addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
@@ -981,44 +977,18 @@ $('#reDel').addEventListener('click', () => {
 [editDlg, storesDlg, recipeDlg, recipeEditDlg, confirmDlg].forEach(d =>
   d.addEventListener('click', e => { if (e.target === d) d.close(); }));
 
-/* ---------- клавиатура iOS: приложение занимает видимую часть экрана ---------- */
-const vv = window.visualViewport;
+/* ---------- клавиатура: поведение iOS по умолчанию, без пересчёта размеров ---------- */
 function fit() {
-  const h = vv ? vv.height : window.innerHeight;
-  document.documentElement.style.setProperty('--app-h', h + 'px');
   const c = $('#add'), t = $('#tabs');
   const below = (c.hidden ? 0 : c.offsetHeight) + t.offsetHeight;
   document.documentElement.style.setProperty('--toast-b', (below + 10) + 'px');
 }
-function keyboardOpen() { return !!vv && (window.innerHeight - vv.height > 120); }
-function fitDialogs() {
-  const kb = keyboardOpen();
-  document.documentElement.classList.toggle('kbd', kb);
-  $$('dialog[open]').forEach(d => {
-    if (kb) {
-      d.style.top = (vv.offsetTop + 8) + 'px';
-      d.style.bottom = 'auto';
-      d.style.margin = '0 auto';
-      d.style.maxHeight = (vv.height - 16) + 'px';
-      d.style.borderRadius = '28px';
-    } else {
-      d.style.top = d.style.bottom = d.style.margin = d.style.maxHeight = d.style.borderRadius = '';
-    }
-  });
-}
-function onViewport() { fit(); fitDialogs(); if (!document.querySelector('dialog[open]')) window.scrollTo(0, 0); }
-document.addEventListener('focusin', e => {
-  if (!e.target.closest || !e.target.closest('dialog')) return;
-  const el = e.target;
-  setTimeout(() => { fitDialogs(); el.scrollIntoView({ block: 'nearest' }); }, 350);
-});
-document.addEventListener('focusout', e => {
-  if (e.target.closest && e.target.closest('dialog')) setTimeout(fitDialogs, 200);
-});
-if (vv) { vv.addEventListener('resize', onViewport); vv.addEventListener('scroll', onViewport); }
 window.addEventListener('resize', fit);
-$('#name').addEventListener('focus', () => { document.body.classList.add('kb'); setTimeout(onViewport, 300); });
-$('#name').addEventListener('blur', () => { document.body.classList.remove('kb'); setTimeout(onViewport, 100); });
+// Кнопка «+» не забирает фокус у поля: клавиатура остаётся открытой, можно добавлять подряд
+$('.addbtn').addEventListener('mousedown', e => e.preventDefault());
+$('#item').addEventListener('blur', () => setTimeout(() => {
+  if (!document.activeElement || document.activeElement === document.body) window.scrollTo(0, 0);
+}, 150));
 
 /* ---------- запуск ---------- */
 applyTheme();
