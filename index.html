@@ -106,6 +106,8 @@ ul{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:22
 /* composer + tabs */
 .composer{padding:10px 16px 12px;background:var(--bg)}
 .pick{padding:0 0 10px}
+.preview{margin:0 6px 8px;font-size:14px;line-height:1.35;font-weight:600;color:var(--muted);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .field{display:flex;align-items:center;gap:8px;padding:6px 6px 6px 20px;border-radius:30px;background:var(--surface);
   box-shadow:0 0 0 2px var(--line),0 10px 24px -14px rgba(30,27,58,.45)}
 .field:focus-within{box-shadow:0 0 0 2px var(--accent),0 10px 24px -14px rgba(30,27,58,.45)}
@@ -184,8 +186,9 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
 
   <form class="composer" id="add" autocomplete="off">
     <div class="pick" id="pick"></div>
+    <p class="preview" id="preview" hidden></p>
     <div class="field">
-      <input id="item" type="text" placeholder="Что купить?" enterkeyhint="done" autocapitalize="sentences" autocorrect="on" maxlength="80" aria-label="Название продукта">
+      <input id="item" type="text" placeholder="Что купить? Можно списком" enterkeyhint="done" autocapitalize="sentences" autocorrect="on" maxlength="80" aria-label="Название продукта">
       <button class="addbtn" type="submit" aria-label="Добавить в список">
         <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
       </button>
@@ -448,7 +451,7 @@ function renderList() {
   if (!any) {
     h += state.items.length
       ? `<div class="empty"><h2>Здесь пока ничего</h2><p>Для этого магазина нет продуктов. Выберите его в строке ввода внизу и добавьте первый.</p></div>`
-      : `<div class="empty"><h2>Пока пусто</h2><p>Впишите продукт внизу и нажмите «+». Магазин можно выбрать, а можно не указывать.</p></div>`;
+      : `<div class="empty"><h2>Пока пусто</h2><p>Впишите продукт внизу и нажмите «+». Можно сразу несколько: «молоко, хлеб и 2 кг яблок». Или нажмите микрофон на клавиатуре и надиктуйте.</p></div>`;
     $('#list').innerHTML = h;
     return;
   }
@@ -593,6 +596,123 @@ function toast(msg, canUndo) {
 }
 const snapshot = () => { undoSnap = JSON.stringify(state); };
 
+/* ---------- умный ввод: «молоко, хлеб и два килограмма яблок» ---------- */
+const NUM_WORDS = { 'один':1,'одна':1,'одну':1,'одно':1,'два':2,'две':2,'три':3,'четыре':4,'пять':5,'шесть':6,'семь':7,
+  'восемь':8,'девять':9,'десять':10,'одиннадцать':11,'двенадцать':12,'пятнадцать':15,'двадцать':20,
+  'полтора':1.5,'полторы':1.5,'пару':2,'пол':0.5 };
+const UNITS = (() => {
+  const m = {}, add = (short, words) => words.forEach(w => { m[w] = short; });
+  add('кг', ['кг','килограмм','килограмма','килограммов','кило']);
+  add('г', ['г','гр','грамм','грамма','граммов']);
+  add('л', ['л','литр','литра','литров']);
+  add('мл', ['мл','миллилитр','миллилитра','миллилитров']);
+  add('шт', ['шт','штука','штуки','штук']);
+  ['пачка','пачки','пачку','пачек','упаковка','упаковки','упаковку','упаковок','бутылка','бутылки','бутылку','бутылок',
+   'банка','банки','банку','банок','пакет','пакета','пакетов','коробка','коробки','коробку','коробок','десяток','десятка',
+   'дюжина','дюжины','ящик','ящика','связка','связки','булка','булки','буханка','буханки','батон','батона','батонов',
+   'пучок','пучка','кусок','куска','кусков','рулон','рулона','рулонов','пара','пары'].forEach(w => { m[w] = w; });
+  return m;
+})();
+const METRIC = new Set(['кг','г','л','мл','шт']);
+// Диктовка и падежи: «два килограмма яблок» -> «Яблоки»
+const NOMINATIVE = { 'яблок':'яблоки','яблока':'яблоки','помидоров':'помидоры','помидора':'помидоры','огурцов':'огурцы','огурца':'огурцы',
+  'бананов':'бананы','банана':'бананы','апельсинов':'апельсины','лимонов':'лимоны','мандаринов':'мандарины','груш':'груши',
+  'картошки':'картошка','картофеля':'картофель','молока':'молоко','хлеба':'хлеб','сыра':'сыр','масла':'масло','яиц':'яйца',
+  'сахара':'сахар','соли':'соль','муки':'мука','воды':'вода','колбасы':'колбаса','мяса':'мясо','курицы':'курица','рыбы':'рыба',
+  'кефира':'кефир','йогурта':'йогурт','йогуртов':'йогурты','сметаны':'сметана','творога':'творог','конфет':'конфеты',
+  'печенья':'печенье','шоколада':'шоколад','чая':'чай','макарон':'макароны','риса':'рис','гречки':'гречка','лука':'лук',
+  'чеснока':'чеснок','моркови':'морковь','капусты':'капуста','перца':'перец','укропа':'укроп','пива':'пиво','вина':'вино',
+  'сока':'сок','сосисок':'сосиски','пельменей':'пельмени','чипсов':'чипсы','орехов':'орехи','кукурузы':'кукуруза',
+  'горошка':'горошек','фасоли':'фасоль','булок':'булки','туалетной бумаги':'туалетная бумага','бумаги':'бумага','мыла':'мыло',
+  'шампуня':'шампунь','зубной пасты':'зубная паста','порошка':'порошок','салфеток':'салфетки','пакетов':'пакеты',
+  'батона':'батон','батонов':'батоны','сухариков':'сухарики','кофе':'кофе' };
+
+const fmtNum = n => String(n).replace('.', ',');
+
+function splitInput(text) {
+  const parts = String(text).replace(/(\d),(\d)/g, '$1\u0001$2')          // запятая в «3,2» не разделитель
+    .split(/[\n;,]+|\s+и\s+|\s+а также\s+|\s+плюс\s+/i)
+    .map(x => x.replace(/\u0001/g, ',').trim()).filter(Boolean);
+  const out = [];
+  for (const part of parts) {
+    // кусок без букв («82%», «10») относится к предыдущему продукту
+    if (!/[A-Za-zА-Яа-яЁё]/.test(part) && out.length) out[out.length - 1] += ' ' + part;
+    else out.push(part);
+  }
+  return out;
+}
+
+function parseChunk(raw) {
+  let t = raw.trim().replace(/[.!?…]+$/, '').trim();
+  let prev;
+  do { prev = t; t = t.replace(/^(?:и|ещё|еще|а также|добавь|добавить|купи|купить|надо|нужно|мне|пожалуйста|ну)\s+/i, ''); } while (t !== prev);
+  if (!t) return null;
+  const tok = t.split(/\s+/);
+  const low = tok.map(w => w.toLowerCase());
+  const numOf = w => /^\d+([.,]\d+)?$/.test(w) ? parseFloat(w.replace(',', '.')) : (w in NUM_WORDS ? NUM_WORDS[w] : null);
+  let qty = '', from = -1, to = -1, unitWord = null, num = null;
+
+  for (let i = 0; i < tok.length && from < 0; i++) {            // слитно: 500г, 2кг
+    const m = low[i].match(/^(\d+(?:[.,]\d+)?)(кг|гр|г|л|мл|шт)$/);
+    if (m) { num = parseFloat(m[1].replace(',', '.')); qty = fmtNum(num) + ' ' + (UNITS[m[2]] || m[2]); from = i; to = i + 1; }
+  }
+  if (from < 0 && low.includes('полкило')) {                    // «полкило сыра»
+    from = low.indexOf('полкило'); to = from + 1; qty = '0,5 кг';
+  }
+  for (let i = 0; i < tok.length && from < 0; i++) {            // число + единица
+    const n = numOf(low[i]);
+    if (n !== null && i + 1 < tok.length && UNITS[low[i + 1]]) {
+      num = n; unitWord = low[i + 1];
+      qty = fmtNum(n) + ' ' + UNITS[unitWord]; from = i; to = i + 2;
+    }
+  }
+  if (from < 0 && tok.length > 1) {                             // просто число в начале или в конце
+    const i = numOf(low[0]) !== null ? 0 : (numOf(low[tok.length - 1]) !== null ? tok.length - 1 : -1);
+    if (i >= 0) { num = numOf(low[i]); qty = fmtNum(num); from = i; to = i + 1; }
+  }
+
+  let name = from >= 0 ? [...tok.slice(0, from), ...tok.slice(to)].join(' ') : t;
+  name = name.replace(/[,;]+$/, '').trim();
+  if (!name) {
+    if (unitWord && !METRIC.has(UNITS[unitWord])) { name = unitWord; qty = fmtNum(num); }   // «2 батона»
+    else { name = t; qty = ''; }
+  }
+  const key = name.toLowerCase();
+  if (NOMINATIVE[key]) name = NOMINATIVE[key];
+  return { name, qty };
+}
+
+function parseInput(text) {
+  return splitInput(text).map(parseChunk).filter(Boolean);
+}
+
+// Магазин по истории: если этот продукт уже покупали или добавляли в магазине, подставляем его
+function guessStore(name) {
+  const k = name.trim().toLowerCase();
+  for (let i = state.log.length - 1; i >= 0; i--) {
+    const e = state.log[i];
+    if (e.store && e.name.toLowerCase() === k) { const s = state.stores.find(x => x.name === e.store); if (s) return s.id; }
+  }
+  for (let i = state.items.length - 1; i >= 0; i--) {
+    const it = state.items[i];
+    if (it.store && it.name.toLowerCase() === k && storeOf(it.store)) return it.store;
+  }
+  return null;
+}
+
+const cap = x => x ? x[0].toUpperCase() + x.slice(1) : x;
+function updatePreview() {
+  const box = $('#preview');
+  const items = parseInput($('#item').value);
+  if (items.length > 1 || items.some(i => i.qty)) {
+    box.textContent = 'Добавится: ' + items.map(i => cap(i.name) + (i.qty ? ` (${i.qty})` : '')).join(', ');
+    box.hidden = false;
+  } else {
+    box.hidden = true;
+  }
+  fit();
+}
+
 function createItem(raw, store, qty) {
   let name = String(raw).trim().replace(/\s+/g, ' ');
   if (!name) return { ok: false };
@@ -605,14 +725,24 @@ function createItem(raw, store, qty) {
 }
 
 function addItem(raw) {
-  const store = pick && storeOf(pick) ? pick : null;
-  const r = createItem(raw, store);
-  if (r.dup) { toast(`«${r.name}» уже в списке`); return false; }
-  if (!r.ok) return false;
+  const parsed = parseInput(raw);
+  if (!parsed.length) return false;
+  let added = 0, dups = 0, last = null, dupName = '';
+  for (const x of parsed) {
+    const store = pick && storeOf(pick) ? pick : guessStore(x.name);
+    const r = createItem(x.name, store, x.qty);
+    if (r.ok) { added++; last = r.item; }
+    else if (r.dup) { dups++; dupName = r.name; }
+  }
+  if (!added) {
+    if (dups) toast(parsed.length > 1 ? 'Всё это уже в списке' : `«${dupName}» уже в списке`);
+    return false;
+  }
   save(); render();
-  const row = document.querySelector(`.row[data-id="${r.item.id}"]`);
+  const row = document.querySelector(`.row[data-id="${last.id}"]`);
   if (row) row.scrollIntoView({ block: 'nearest' });
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+  if (parsed.length > 1) toast(`Добавлено: ${added}` + (dups ? `, уже были: ${dups}` : ''));
   return true;
 }
 
@@ -806,9 +936,10 @@ async function importData(file) {
 $('#add').addEventListener('submit', e => {
   e.preventDefault();
   const input = $('#item');
-  if (addItem(input.value)) input.value = '';
+  if (addItem(input.value)) { input.value = ''; updatePreview(); }
   input.focus();
 });
+$('#item').addEventListener('input', updatePreview);
 
 $('#tabs').addEventListener('click', e => {
   const b = e.target.closest('[data-tab]');
