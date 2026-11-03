@@ -314,7 +314,7 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
 const KEY = 'produkty.v1';
 // Общий список: адрес Firebase Realtime Database, например https://xxx-default-rtdb.europe-west1.firebasedatabase.app
 // Пока пусто, раздел «Общий список» скрыт и ничего не отправляется.
-const SYNC_URL = '';
+const SYNC_URL = 'https://produkty-sync-default-rtdb.europe-west1.firebasedatabase.app';
 const TIP_KEY = 'produkty.tip';
 const PALETTE = ['#E5472E', '#F0A010', '#2E8B57', '#3C5BD9', '#9B4FC9', '#E8648A', '#14A3A3', '#7B6A58'];
 const NONE_COLOR = '#8C89AB';
@@ -330,7 +330,7 @@ let state = load();
 let tab = 'list';
 let pick = null;               // магазин, выбранный в строке ввода (не сохраняется)
 let undoSnap = null, toastTimer = 0, renderTimer = 0;
-let es = null, pushTimer = 0, pushing = false, syncState = 'off', retryTimer = 0, rsTimer = 0, lastTouch = 0, quietUntil = 0, pendingClaim = null, afterName = null;
+let es = null, pushTimer = 0, pushing = false, syncState = 'off', retryTimer = 0, rsTimer = 0, lastTouch = 0, quietUntil = 0, syncErr = '', pendingClaim = null, afterName = null;
 let fromComposer = false, editingId = null, editStore = null, recipeId = null, recipeEditId = null;
 
 /* ---------- данные ---------- */
@@ -1188,10 +1188,12 @@ async function push() {
     const r = await fetch(listUrl(), { method: 'PATCH', body: JSON.stringify(payload) });
     if (!r.ok) throw new Error('http ' + r.status);
     for (const id in sent) if (state.dirty[id] === sent[id]) delete state.dirty[id];
+    syncErr = '';
     saveLocal();
     if (syncState !== 'online') setSyncState('online');
   } catch (e) {
     pushing = false;
+    syncErr = String((e && e.message) || e).slice(0, 60);
     setSyncState('offline');
     clearTimeout(pushTimer); pushTimer = setTimeout(push, 15000);
     return;
@@ -1273,7 +1275,7 @@ function syncSection() {
   const label = { online: 'Подключено', connecting: 'Подключаюсь…', offline: 'Нет связи', off: 'Подключаюсь…' }[syncState];
   const rows = state.sync.id
     ? `<li><button class="arow" type="button" data-act="syncname"><span class="nm">Ваше имя: ${esc(state.me || 'не указано')}</span><span class="qty">Его видят остальные: кто добавил и кто купит.</span></button></li>
-       <li><div class="arow"><span class="nm">${label}</span><span class="qty">Продукты и магазины обновляются сразу у всех. Без связи изменения отправятся позже.</span></div></li>
+       <li><div class="arow"><span class="nm">${label}${syncState === 'offline' && syncErr ? ' (' + esc(syncErr) + ')' : ''}</span><span class="qty">Продукты и магазины обновляются сразу у всех. Без связи изменения отправятся позже.</span></div></li>
        <li><button class="arow" type="button" data-act="syncinvite"><span class="nm">Пригласить</span><span class="qty">Отправить код и ссылку.</span></button></li>
        <li><button class="arow danger" type="button" data-act="syncoff"><span class="nm">Отключиться</span><span class="qty">Список останется на этом телефоне.</span></button></li>`
     : `<li><button class="arow" type="button" data-act="syncnew"><span class="nm">Сделать список общим</span><span class="qty">Продукты и магазины будут одинаковыми у всех, кому вы отправите приглашение.</span></button></li>
