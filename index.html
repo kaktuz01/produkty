@@ -163,6 +163,11 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
 .ing .nm{flex:1;font-size:17px}
 .ing .q2{color:var(--muted);font-size:15px;font-weight:500}
 
+.sdot{display:inline-block;width:9px;height:9px;margin-right:8px;border-radius:50%;background:#8C89AB}
+.sdot.online{background:#2E8B57}
+.claim{display:block;width:max-content;margin-top:6px;min-height:32px;padding:0 13px;border:0;border-radius:99px;background:var(--chip);color:var(--muted);font-size:13px;font-weight:700}
+.claim.mine{background:var(--accent);color:#fff}
+.claim.other{background:var(--ink);color:var(--bg)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -268,6 +273,26 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
   </form>
 </dialog>
 
+<!-- Имя в общем списке -->
+<dialog id="nameDlg" aria-label="Ваше имя">
+  <form class="sheet" id="nameForm" autocomplete="off">
+    <h3>Как вас называть?</h3>
+    <label class="f">Имя в общем списке<input id="who" type="text" maxlength="20" autocomplete="off" autocapitalize="words" autocorrect="off" placeholder="Например, Мама"></label>
+    <p class="hint">Остальные увидят, кто что добавил и кто собирается купить.</p>
+    <div class="actions"><button class="btn primary" type="submit">Сохранить</button></div>
+  </form>
+</dialog>
+
+<!-- Подключение к общему списку -->
+<dialog id="joinDlg" aria-label="Подключиться к списку">
+  <form class="sheet" id="joinForm" autocomplete="off">
+    <h3>Подключиться к списку</h3>
+    <label class="f">Код или ссылка<input id="listCode" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Вставьте из приглашения"></label>
+    <p class="hint">Ваши продукты объединятся с общим списком.</p>
+    <div class="actions"><button class="btn primary" type="submit" autofocus>Подключиться</button></div>
+  </form>
+</dialog>
+
 <!-- Подтверждение -->
 <dialog id="confirmDlg" aria-label="Подтверждение">
   <form class="sheet" method="dialog">
@@ -287,6 +312,9 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
 'use strict';
 
 const KEY = 'produkty.v1';
+// Общий список: адрес Firebase Realtime Database, например https://xxx-default-rtdb.europe-west1.firebasedatabase.app
+// Пока пусто, раздел «Общий список» скрыт и ничего не отправляется.
+const SYNC_URL = '';
 const TIP_KEY = 'produkty.tip';
 const PALETTE = ['#E5472E', '#F0A010', '#2E8B57', '#3C5BD9', '#9B4FC9', '#E8648A', '#14A3A3', '#7B6A58'];
 const NONE_COLOR = '#8C89AB';
@@ -302,20 +330,22 @@ let state = load();
 let tab = 'list';
 let pick = null;               // магазин, выбранный в строке ввода (не сохраняется)
 let undoSnap = null, toastTimer = 0, renderTimer = 0;
+let es = null, pushTimer = 0, pushing = false, syncState = 'off', retryTimer = 0, rsTimer = 0, lastTouch = 0, quietUntil = 0, pendingClaim = null, afterName = null;
 let fromComposer = false, editingId = null, editStore = null, recipeId = null, recipeEditId = null;
 
 /* ---------- данные ---------- */
 function normalize(s) {
-  const out = { items: [], stores: [], view: 'all', log: [], recipes: [], theme: 'auto' };
+  const out = { items: [], stores: [], view: 'all', log: [], recipes: [], theme: 'auto', me: '', sync: { id: null }, dead: {}, dirty: {} };
   if (!s || typeof s !== 'object') return out;
   if (Array.isArray(s.stores)) {
     out.stores = s.stores.filter(x => x && x.id && x.name)
-      .map(x => ({ id: String(x.id), name: String(x.name).slice(0, 40), color: colorOk(x.color) ? x.color : PALETTE[0] }));
+      .map(x => ({ id: String(x.id), name: String(x.name).slice(0, 40), color: colorOk(x.color) ? x.color : PALETTE[0], u: Number(x.u) || 0 }));
   }
   if (Array.isArray(s.items)) {
     out.items = s.items.filter(x => x && x.id && x.name)
       .map(x => ({ id: String(x.id), name: String(x.name).slice(0, 80), qty: String(x.qty || '').slice(0, 60),
-                   store: out.stores.some(st => st.id === x.store) ? x.store : null, done: !!x.done }));
+                   store: out.stores.some(st => st.id === x.store) ? x.store : null, done: !!x.done, u: Number(x.u) || 0,
+                   by: String(x.by || '').slice(0, 20), b: String(x.b || '').slice(0, 20) }));
   }
   if (Array.isArray(s.log)) {
     out.log = s.log.filter(x => x && x.name && Number(x.ts) > 0).slice(-LOG_MAX)
@@ -327,15 +357,52 @@ function normalize(s) {
       .map(x => ({ id: String(x.id), title: String(x.title).slice(0, 60), text: String(x.text || '').slice(0, 3000) }));
   }
   if (['auto', 'light', 'dark'].includes(s.theme)) out.theme = s.theme;
+  if (typeof s.me === 'string') out.me = s.me.slice(0, 20);
+  if (s.sync && /^[a-z0-9]{20,40}$/.test(String(s.sync.id))) out.sync = { id: String(s.sync.id) };
+  for (const key of ['dead', 'dirty']) {
+    if (s[key] && typeof s[key] === 'object') {
+      for (const [k, v] of Object.entries(s[key])) if (Number(v) > 0) out[key][String(k)] = Number(v);
+    }
+  }
   return out;
 }
 function load() {
   try { return normalize(JSON.parse(localStorage.getItem(KEY))); } catch (e) { return normalize(null); }
 }
-function save() {
+function saveLocal() {
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
 }
+function save() {
+  saveLocal();
+  if (syncActive()) schedulePush();
+}
 const storeOf = id => state.stores.find(s => s.id === id);
+
+/* метки времени для синхронизации: побеждает более поздняя правка каждого продукта и магазина */
+let lastU = 0;
+const now = () => (lastU = Math.max(Date.now(), lastU + 1));
+function touch(e) {
+  e.u = now();
+  if (state.sync.id) state.dirty[e.id] = e.u;
+  return e;
+}
+function kill(id) {
+  state.items = state.items.filter(i => i.id !== id);
+  state.stores = state.stores.filter(s => s.id !== id);
+  if (state.sync.id) { state.dead[id] = now(); state.dirty[id] = state.dead[id]; }
+}
+function replaceState(next) {            // восстановление, «отменить», удаление всех данных
+  const old = state;
+  next.me = old.me; next.sync = old.sync; next.dead = { ...old.dead }; next.dirty = { ...old.dirty };
+  const keep = new Set([...next.items, ...next.stores].map(e => e.id));
+  state = next;
+  if (state.sync.id) {
+    const t = now();
+    for (const e of [...old.items, ...old.stores]) if (!keep.has(e.id)) { state.dead[e.id] = t; state.dirty[e.id] = t; }
+  }
+  [...state.items, ...state.stores].forEach(e => touch(e));
+}
+const exportable = () => { const { sync, dead, dirty, ...rest } = state; return rest; };
 
 function fixView() {
   const v = state.view;
@@ -414,7 +481,7 @@ function renderChrome() {
   } else {
     stats = 'Всё хранится на этом телефоне';
   }
-  $('#stats').textContent = stats;
+  $('#stats').innerHTML = (tab === 'list' && syncActive() ? `<i class="sdot ${syncState}" title="Общий список"></i>` : '') + esc(stats);
   $('#acts').innerHTML = acts;
   $('#barBox').hidden = tab !== 'list';
   $('#add').hidden = tab !== 'list';
@@ -441,6 +508,34 @@ function showTip() {
   return ios && !standalone && !dismissed;
 }
 
+function bylineHtml(i) {
+  return syncActive() && !i.done && i.by && i.by !== state.me ? `<span class="qty">Добавил: ${esc(i.by)}</span>` : '';
+}
+function claimHtml(i) {
+  if (!syncActive()) return '';
+  if (i.done) return i.b ? `<span class="qty">Купил: ${esc(i.b)}</span>` : '';
+  const mine = !!state.me && i.b === state.me;
+  const cls = mine ? 'claim mine' : (i.b ? 'claim other' : 'claim');
+  const label = mine || !i.b ? 'Я куплю' : `Купит: ${esc(i.b)}`;
+  return `<button class="${cls}" type="button" data-act="claim" aria-pressed="${mine}">${mine ? '✓ ' : ''}${label}</button>`;
+}
+function toggleClaim(id) {
+  const it = state.items.find(i => i.id === id);
+  if (!it) return;
+  if (!state.me) { pendingClaim = id; openName(); return; }
+  it.b = it.b === state.me ? '' : state.me;
+  touch(it); save();
+  const row = document.querySelector(`.row[data-id="${id}"]`);
+  const old = row && row.querySelector('.claim');
+  if (old) old.outerHTML = claimHtml(it);            // меняем только кнопку, строки не двигаются
+}
+function openName(after) {
+  afterName = after || null;
+  $('#who').value = state.me;
+  nameDlg.showModal();
+  $('#who').focus();
+}
+
 function renderList() {
   const gs = getGroups(state.view);
   let h = '';
@@ -461,7 +556,7 @@ function renderList() {
     const rows = g.items.map(i => `
       <li class="row${i.done ? ' done' : ''}" data-id="${i.id}" style="--c:${g.color}">
         <button class="check" type="button" aria-label="Куплено: ${esc(i.name)}" aria-pressed="${i.done}">${ICONS.check}</button>
-        <div><span class="nm">${esc(i.name)}</span>${i.qty ? `<span class="qty">${esc(i.qty)}</span>` : ''}</div>
+        <div><span class="nm">${esc(i.name)}</span>${i.qty ? `<span class="qty">${esc(i.qty)}</span>` : ''}${bylineHtml(i)}${claimHtml(i)}</div>
         <button class="more" type="button" data-act="edit" aria-label="Изменить: ${esc(i.name)}">${ICONS.more}</button>
       </li>`).join('');
     h += `<section class="group">${g.name ? `<h2><i class="dot" style="--c:${g.color}"></i>${esc(g.name)}<small>${left ? left : 'всё куплено'}</small></h2>` : ''}<ul>${rows}</ul></section>`;
@@ -574,7 +669,7 @@ function renderHistory() {
 /* --- настройки --- */
 function renderSettings() {
   const themes = [['auto', 'Как в системе'], ['light', 'Светлая'], ['dark', 'Тёмная']];
-  $('#list').innerHTML = `
+  $('#list').innerHTML = `${syncSection()}
     <section class="group"><h2>Оформление</h2><div class="chips">${themes.map(([v, l]) =>
       `<button class="chip" type="button" data-act="theme" data-v="${v}" aria-pressed="${state.theme === v}">${l}</button>`).join('')}</div></section>
     <section class="group"><h2>Данные</h2><ul>
@@ -587,12 +682,12 @@ function renderSettings() {
 }
 
 /* ---------- действия ---------- */
-function toast(msg, canUndo) {
+function toast(msg, canUndo, ms) {
   $('#toastMsg').textContent = msg;
   $('#undo').hidden = !canUndo;
   $('#toast').classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => $('#toast').classList.remove('show'), canUndo ? 6000 : 2400);
+  toastTimer = setTimeout(() => $('#toast').classList.remove('show'), ms || (canUndo ? 6000 : 2400));
 }
 const snapshot = () => { undoSnap = JSON.stringify(state); };
 
@@ -719,7 +814,7 @@ function createItem(raw, store, qty) {
   name = name[0].toUpperCase() + name.slice(1);
   const dup = state.items.find(i => !i.done && i.store === store && i.name.toLowerCase() === name.toLowerCase());
   if (dup) return { ok: false, dup: true, name };
-  const item = { id: uid(), name, qty: qty || '', store, done: false };
+  const item = touch({ id: uid(), name, qty: qty || '', store, done: false, by: state.sync.id ? state.me : '', b: '' });
   state.items.push(item);
   return { ok: true, item, name };
 }
@@ -770,6 +865,8 @@ function toggle(id, row) {
   const it = state.items.find(i => i.id === id);
   if (!it) return;
   it.done = !it.done;
+  it.b = it.done && state.sync.id ? state.me : '';       // кто купил
+  touch(it);
   if (it.done) logPurchase(it); else unlogPurchase(it);
   save();
   row.classList.toggle('done', it.done);
@@ -787,7 +884,7 @@ function clearDone() {
   getGroups(state.view).forEach(g => g.items.forEach(i => { if (i.done) ids.add(i.id); }));
   if (!ids.size) return;
   snapshot();
-  state.items = state.items.filter(i => !ids.has(i.id));
+  ids.forEach(id => kill(id));
   save(); render();
   toast(`Убрано: ${ids.size}`, true);
 }
@@ -822,7 +919,7 @@ function setTab(t) {
 
 /* --- диалоги --- */
 const editDlg = $('#editDlg'), storesDlg = $('#storesDlg'), recipeDlg = $('#recipeDlg'),
-      recipeEditDlg = $('#recipeEditDlg'), confirmDlg = $('#confirmDlg');
+      recipeEditDlg = $('#recipeEditDlg'), confirmDlg = $('#confirmDlg'), joinDlg = $('#joinDlg'), nameDlg = $('#nameDlg');
 
 function ask(title, text, ok) {
   return new Promise(res => {
@@ -902,7 +999,7 @@ function openRecipeEdit(id) {
 /* данные */
 function stamp() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 async function exportData() {
-  const json = JSON.stringify({ app: 'produkty', version: 2, exported: new Date().toISOString(), data: state }, null, 2);
+  const json = JSON.stringify({ app: 'produkty', version: 2, exported: new Date().toISOString(), data: exportable() }, null, 2);
   const name = `produkty-${stamp()}.json`;
   const file = new File([json], name, { type: 'text/plain' });
   try {
@@ -924,12 +1021,264 @@ async function importData(file) {
     const d = j && j.data ? j.data : j;
     if (!d || !Array.isArray(d.items)) throw new Error('bad');
     snapshot();
-    state = normalize(d);
+    replaceState(normalize(d));
     save(); render();
     toast('Данные восстановлены', true);
   } catch (e) {
     toast('Не удалось прочитать файл');
   }
+}
+
+/* ---------- общий список (Firebase Realtime Database, обычные запросы без библиотек) ---------- */
+const syncActive = () => !!(SYNC_URL && state.sync.id);
+const listUrl = () => `${SYNC_URL}/lists/${state.sync.id}.json`;
+document.addEventListener('pointerdown', () => { lastTouch = Date.now(); }, true);
+
+function setSyncState(v) {
+  if (syncState === v) return;
+  syncState = v;
+  renderChrome();
+  if (tab === 'settings' && !document.querySelector('dialog[open]')) renderSettings();
+}
+// Обновления от других людей не перестраивают список в момент ваших нажатий
+function renderSoon() {
+  clearTimeout(rsTimer);
+  rsTimer = setTimeout(render, Math.max(0, 1500 - (Date.now() - lastTouch)));
+}
+
+function stopSync() {
+  clearTimeout(retryTimer); clearTimeout(pushTimer);
+  if (es) { es.close(); es = null; }
+  setSyncState('off');
+}
+function startSync() {
+  stopSync();
+  if (!syncActive()) return;
+  setSyncState('connecting');
+  let src;
+  try { src = new EventSource(listUrl()); } catch (e) { setSyncState('offline'); return; }
+  es = src;
+  src.onopen = () => { setSyncState('online'); schedulePush(0); };
+  src.onerror = () => {
+    setSyncState('offline');
+    if (src.readyState === 2) retryTimer = setTimeout(startSync, 10000);   // соединение закрыто совсем
+  };
+  src.addEventListener('put', ev => onStream(ev, false));
+  src.addEventListener('patch', ev => onStream(ev, true));
+  src.addEventListener('cancel', () => setSyncState('offline'));
+}
+
+function onStream(ev, isPatch) {
+  let m;
+  try { m = JSON.parse(ev.data); } catch (e) { return; }
+  if (!m) return;
+  const path = String(m.path || '/');
+  const snap = {};
+  const put = (p, data) => {
+    const parts = p.split('/').filter(Boolean);
+    if (!parts.length) { if (data && typeof data === 'object') Object.assign(snap, data); return; }
+    let cur = snap;
+    for (let i = 0; i < parts.length - 1; i++) {
+      cur = cur[parts[i]] = (cur[parts[i]] && typeof cur[parts[i]] === 'object') ? cur[parts[i]] : {};
+    }
+    cur[parts[parts.length - 1]] = data;
+  };
+  if (isPatch && m.data && typeof m.data === 'object') { for (const k of Object.keys(m.data)) put(path + '/' + k, m.data[k]); }
+  else put(path, m.data);
+  applyRemote(snap, !isPatch && path === '/');
+}
+
+function applyRemote(snap, full) {
+  let changed = false;
+  const quiet = Date.now() < quietUntil, fresh = [];
+  const dead = snap.dead && typeof snap.dead === 'object' ? snap.dead : {};
+  for (const [id, raw] of Object.entries(dead)) {
+    const n = Number(raw);
+    if (!(n > 0)) continue;
+    if (n > (state.dead[id] || 0)) { state.dead[id] = n; changed = true; }
+    const it = state.items.find(i => i.id === id), st = storeOf(id);
+    if (it && it.u <= n) { state.items = state.items.filter(i => i !== it); delete state.dirty[id]; changed = true; }
+    if (st && st.u <= n) {
+      state.stores = state.stores.filter(x => x !== st);
+      state.items.forEach(i => { if (i.store === id) i.store = null; });
+      delete state.dirty[id]; changed = true;
+    }
+  }
+  const okId = id => /^[\w-]{1,40}$/.test(id);
+  for (const [id, r] of Object.entries(snap.stores || {})) {
+    if (!r || typeof r !== 'object' || !okId(id)) continue;
+    const u = Number(r.u) || 0;
+    if ((state.dead[id] || 0) >= u) continue;
+    const next = { id, name: String(r.n || '').slice(0, 40), color: colorOk(r.c) ? r.c : PALETTE[0], u };
+    if (!next.name) continue;
+    const cur = storeOf(id);
+    if (!cur) { state.stores.push(next); changed = true; }
+    else if (u > cur.u) { Object.assign(cur, next); delete state.dirty[id]; changed = true; }
+  }
+  for (const [id, r] of Object.entries(snap.items || {})) {
+    if (!r || typeof r !== 'object' || !okId(id)) continue;
+    const u = Number(r.u) || 0;
+    if ((state.dead[id] || 0) >= u) continue;
+    const sid = r.s ? String(r.s) : null;
+    const next = { id, name: String(r.n || '').slice(0, 80), qty: String(r.q || '').slice(0, 60),
+                   store: sid && storeOf(sid) ? sid : null, done: !!r.d, u,
+                   by: String(r.a || '').slice(0, 20), b: String(r.b || '').slice(0, 20) };
+    if (!next.name) continue;
+    const cur = state.items.find(i => i.id === id);
+    if (!cur) { state.items.push(next); changed = true; if (!next.done && next.by !== state.me) fresh.push(next); }
+    else if (u > cur.u) { Object.assign(cur, next); delete state.dirty[id]; changed = true; }
+  }
+  if (fresh.length && !quiet) {            // сообщение, когда кто-то добавил продукт
+    const by = [...new Set(fresh.map(x => x.by).filter(Boolean))].join(', ');
+    const names = fresh.slice(0, 3).map(x => x.name).join(', ') + (fresh.length > 3 ? ` и ещё ${fresh.length - 3}` : '');
+    toast(`Новое в списке${by ? ' (' + by + ')' : ''}: ${names}`, false, 5000);
+  }
+  if (full) {
+    // что есть у нас, но нет в общем списке (и не удалено), отправляем туда
+    const remoteIds = new Set([...Object.keys(snap.items || {}), ...Object.keys(snap.stores || {}), ...Object.keys(dead)]);
+    for (const e of [...state.items, ...state.stores]) {
+      if (!remoteIds.has(e.id) && !(state.dead[e.id] >= e.u)) state.dirty[e.id] = e.u;
+    }
+  }
+  if (dedupe()) changed = true;           // в списке не бывает двух одинаковых продуктов и магазинов
+  if (changed) { saveLocal(); renderSoon(); }
+  if (full || changed) schedulePush(300);
+}
+
+// Одинаковые магазины и продукты, пришедшие с двух телефонов, склеиваем: остаётся самый ранний
+function dedupe() {
+  let changed = false;
+  const keep = new Map();
+  for (const s of [...state.stores].sort((a, b) => a.u - b.u)) {
+    const k = s.name.toLowerCase();
+    if (!keep.has(k)) { keep.set(k, s); continue; }
+    state.items.forEach(i => { if (i.store === s.id) { i.store = keep.get(k).id; touch(i); } });
+    kill(s.id); changed = true;
+  }
+  const seen = new Set();
+  for (const it of [...state.items].sort((a, b) => a.u - b.u)) {
+    if (it.done) continue;
+    const k = it.name.toLowerCase() + '|' + (it.store || '');
+    if (seen.has(k)) { kill(it.id); changed = true; } else seen.add(k);
+  }
+  return changed;
+}
+
+function schedulePush(delay = 250) {
+  if (!syncActive() || !Object.keys(state.dirty).length) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(push, delay);
+}
+async function push() {
+  if (!syncActive() || pushing) return;
+  const ids = Object.keys(state.dirty);
+  if (!ids.length) return;
+  const payload = {}, sent = {};
+  for (const id of ids) {
+    sent[id] = state.dirty[id];
+    const it = state.items.find(i => i.id === id), st = storeOf(id), dead = state.dead[id] || 0;
+    if (it && it.u > dead) payload['items/' + id] = { n: it.name, q: it.qty, s: it.store, d: it.done, u: it.u, a: it.by, b: it.b };
+    else if (st && st.u > dead) payload['stores/' + id] = { n: st.name, c: st.color, u: st.u };
+    else if (dead) { payload['dead/' + id] = dead; payload['items/' + id] = null; payload['stores/' + id] = null; }
+    else { delete state.dirty[id]; delete sent[id]; }
+  }
+  if (!Object.keys(payload).length) { saveLocal(); return; }
+  pushing = true;
+  try {
+    const r = await fetch(listUrl(), { method: 'PATCH', body: JSON.stringify(payload) });
+    if (!r.ok) throw new Error('http ' + r.status);
+    for (const id in sent) if (state.dirty[id] === sent[id]) delete state.dirty[id];
+    saveLocal();
+    if (syncState !== 'online') setSyncState('online');
+  } catch (e) {
+    pushing = false;
+    setSyncState('offline');
+    clearTimeout(pushTimer); pushTimer = setTimeout(push, 15000);
+    return;
+  }
+  pushing = false;
+  if (Object.keys(state.dirty).length) schedulePush(300);
+}
+
+/* приглашения и подключение */
+function newCode() {
+  const a = new Uint8Array(24);
+  crypto.getRandomValues(a);
+  return [...a].map(x => (x % 36).toString(36)).join('');
+}
+function extractCode(text) {
+  const t = String(text).toLowerCase();
+  const m = t.match(/join=([a-z0-9]{20,40})/) || t.match(/\b([a-z0-9]{20,40})\b/);
+  return m ? m[1] : null;
+}
+function inviteText() {
+  const base = location.origin + location.pathname;
+  return `Присоединяйся к моему списку продуктов!\nОткрой приложение «Продукты», затем «Настройки» и «Подключиться по коду» и вставь код:\n${state.sync.id}\n\nИли открой ссылку: ${base}#join=${state.sync.id}`;
+}
+async function inviteShare() {
+  const text = inviteText();
+  try {
+    if (navigator.share) { await navigator.share({ text }); return; }
+    await navigator.clipboard.writeText(text);
+    toast('Приглашение скопировано');
+  } catch (e) { /* закрыли меню */ }
+}
+function joinList(id) {
+  state.sync = { id };
+  state.dirty = {};
+  [...state.items, ...state.stores].forEach(e => touch(e));
+  quietUntil = Date.now() + 2000;         // сразу после подключения не сыплем сообщениями о «новых» продуктах
+  saveLocal();
+  startSync();
+  render();
+}
+async function syncAction(a) {
+  if (a === 'syncnew') {
+    if (!(await ask('Сделать список общим?', 'Продукты и магазины станут общими для всех, кому вы отправите приглашение. Рецепты и история останутся только у вас.', 'Сделать общим'))) return;
+    joinList(newCode());
+    toast('Список теперь общий');
+    if (!state.me) openName(inviteShare); else inviteShare();
+  } else if (a === 'syncjoin') {
+    $('#listCode').value = '';
+    joinDlg.showModal();
+  } else if (a === 'syncname') {
+    openName();
+  } else if (a === 'syncinvite') {
+    inviteShare();
+  } else if (a === 'syncoff') {
+    if (await ask('Отключиться от общего списка?', 'Список останется на этом телефоне, но перестанет обновляться. Подключиться снова можно по коду.', 'Отключиться')) {
+      stopSync(); state.sync = { id: null }; state.dirty = {}; saveLocal(); render();
+      toast('Общий список отключён');
+    }
+  }
+}
+async function handleJoinLink() {
+  const m = location.hash.match(/join=([a-z0-9]{20,40})/i);
+  if (!m || !SYNC_URL) return;
+  const id = m[1].toLowerCase();
+  history.replaceState(null, '', location.pathname + location.search);
+  if (state.sync.id === id) return;
+  const text = state.sync.id
+    ? 'Вы уже в другом общем списке. Вы перейдёте в новый, а ваши текущие продукты объединятся с ним.'
+    : 'Ваши продукты объединятся с общим списком.';
+  if (await ask('Подключиться к общему списку?', text, 'Подключиться')) {
+    if (state.sync.id) stopSync();
+    joinList(id);
+    toast('Подключено к общему списку');
+    if (!state.me) openName();
+  }
+}
+function syncSection() {
+  if (!SYNC_URL) return '';
+  const label = { online: 'Подключено', connecting: 'Подключаюсь…', offline: 'Нет связи', off: 'Подключаюсь…' }[syncState];
+  const rows = state.sync.id
+    ? `<li><button class="arow" type="button" data-act="syncname"><span class="nm">Ваше имя: ${esc(state.me || 'не указано')}</span><span class="qty">Его видят остальные: кто добавил и кто купит.</span></button></li>
+       <li><div class="arow"><span class="nm">${label}</span><span class="qty">Продукты и магазины обновляются сразу у всех. Без связи изменения отправятся позже.</span></div></li>
+       <li><button class="arow" type="button" data-act="syncinvite"><span class="nm">Пригласить</span><span class="qty">Отправить код и ссылку.</span></button></li>
+       <li><button class="arow danger" type="button" data-act="syncoff"><span class="nm">Отключиться</span><span class="qty">Список останется на этом телефоне.</span></button></li>`
+    : `<li><button class="arow" type="button" data-act="syncnew"><span class="nm">Сделать список общим</span><span class="qty">Продукты и магазины будут одинаковыми у всех, кому вы отправите приглашение.</span></button></li>
+       <li><button class="arow" type="button" data-act="syncjoin"><span class="nm">Подключиться по коду</span><span class="qty">Если вам прислали приглашение.</span></button></li>`;
+  return `<section class="group"><h2>Общий список</h2><ul>${rows}</ul></section>`;
 }
 
 /* ---------- события ---------- */
@@ -962,18 +1311,20 @@ $('#list').addEventListener('click', async e => {
     const a = act.dataset.act;
     if (a === 'edit') openEdit(act.closest('.row').dataset.id);
     else if (a === 'clear') clearDone();
+    else if (a === 'claim') toggleClaim(act.closest('.row').dataset.id);
     else if (a === 'tip') { try { localStorage.setItem(TIP_KEY, '1'); } catch (x) {} renderList(); }
     else if (a === 'newrecipe') openRecipeEdit(null);
     else if (a === 'readd') readd(act.dataset.name, act.dataset.store);
     else if (a === 'theme') { state.theme = act.dataset.v; save(); render(); }
     else if (a === 'export') exportData();
+    else if (a.startsWith('sync')) syncAction(a);
     else if (a === 'import') $('#importFile').click();
     else if (a === 'clearhist') {
       if (!state.log.length) { toast('История уже пуста'); return; }
       snapshot(); state.log = []; save(); render(); toast('История очищена', true);
     } else if (a === 'wipe') {
       if (await ask('Удалить все данные?', 'Список, магазины, рецепты и история будут удалены с этого телефона. Сразу после удаления это можно отменить.', 'Удалить')) {
-        snapshot(); state = normalize({ theme: state.theme }); save(); render(); toast('Все данные удалены', true);
+        snapshot(); replaceState(normalize({ theme: state.theme })); save(); render(); toast('Все данные удалены', true);
       }
     }
     return;
@@ -999,7 +1350,7 @@ $('#pick').addEventListener('click', e => {
 
 $('#undo').addEventListener('click', () => {
   if (!undoSnap) return;
-  state = normalize(JSON.parse(undoSnap));
+  replaceState(normalize(JSON.parse(undoSnap)));
   undoSnap = null;
   save(); render();
   $('#toast').classList.remove('show');
@@ -1026,6 +1377,7 @@ $('#editForm').addEventListener('submit', e => {
     if (name) it.name = name;
     it.qty = $('#eQty').value.trim();
     it.store = editStore;
+    touch(it);
     save(); render();
   }
   editDlg.close();
@@ -1034,7 +1386,7 @@ $('#eDel').addEventListener('click', () => {
   const it = state.items.find(i => i.id === editingId);
   if (!it) { editDlg.close(); return; }
   snapshot();
-  state.items = state.items.filter(i => i.id !== editingId);
+  kill(editingId);
   save(); render();
   editDlg.close();
   toast(`Удалено: ${it.name}`, true);
@@ -1050,7 +1402,7 @@ $('#storeForm').addEventListener('submit', e => {
   const used = new Set(state.stores.map(s => s.color));
   const color = PALETTE.find(c => !used.has(c)) || PALETTE[state.stores.length % PALETTE.length];
   const store = { id: uid(), name: name[0].toUpperCase() + name.slice(1), color };
-  state.stores.push(store);
+  state.stores.push(touch(store));
   if (fromComposer) pick = store.id;
   input.value = '';
   save(); render(); renderStores();
@@ -1064,11 +1416,12 @@ $('#storeList').addEventListener('click', e => {
   if (!s) return;
   if (b.dataset.act === 'color') {
     s.color = PALETTE[(PALETTE.indexOf(s.color) + 1) % PALETTE.length];
+    touch(s);
     save(); render(); renderStores();
   } else if (b.dataset.act === 'del') {
     snapshot();
-    state.stores = state.stores.filter(x => x.id !== id);
-    state.items.forEach(i => { if (i.store === id) i.store = null; });
+    state.items.forEach(i => { if (i.store === id) { i.store = null; touch(i); } });
+    kill(id);
     if (pick === id) pick = null;
     save(); render(); renderStores();
     toast(`Магазин «${s.name}» удалён`, true);
@@ -1078,9 +1431,33 @@ $('#storeList').addEventListener('change', e => {
   if (e.target.dataset.act !== 'rename') return;
   const s = storeOf(e.target.closest('.srow').dataset.id);
   const name = e.target.value.trim();
-  if (s && name) { s.name = name; save(); render(); } else if (s) e.target.value = s.name;
+  if (s && name) { s.name = name; touch(s); save(); render(); } else if (s) e.target.value = s.name;
 });
 $('#storesDone').addEventListener('click', () => storesDlg.close());
+
+/* лист «Имя» */
+$('#nameForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const v = $('#who').value.trim().replace(/\s+/g, ' ').slice(0, 20);
+  if (!v) return;
+  state.me = v; saveLocal();
+  const pc = pendingClaim; pendingClaim = null;
+  nameDlg.close();
+  if (pc) toggleClaim(pc);
+  render();
+});
+nameDlg.addEventListener('close', () => { pendingClaim = null; const af = afterName; afterName = null; if (af) af(); });
+
+/* лист «Подключиться к списку» */
+$('#joinForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const id = extractCode($('#listCode').value);
+  if (!id) { toast('Не похоже на код приглашения'); return; }
+  joinDlg.close();
+  joinList(id);
+  toast('Подключено к общему списку');
+  if (!state.me) openName();
+});
 
 /* лист «Рецепт» */
 $('#rIngs').addEventListener('change', updateRecipeBtn);
@@ -1124,7 +1501,7 @@ $('#reDel').addEventListener('click', () => {
 });
 
 /* закрытие листа по тапу на фон */
-[editDlg, storesDlg, recipeDlg, recipeEditDlg, confirmDlg].forEach(d =>
+[editDlg, storesDlg, recipeDlg, recipeEditDlg, confirmDlg, joinDlg, nameDlg].forEach(d =>
   d.addEventListener('click', e => { if (e.target === d) d.close(); }));
 
 /* ---------- клавиатура: поведение iOS по умолчанию, без пересчёта размеров ---------- */
@@ -1143,6 +1520,11 @@ $('#item').addEventListener('blur', () => setTimeout(() => {
 /* ---------- запуск ---------- */
 applyTheme();
 render();
+startSync();
+handleJoinLink();
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && syncActive()) startSync(); });
+window.addEventListener('online', () => { if (syncActive()) startSync(); });
+window.addEventListener('offline', () => { if (syncActive()) setSyncState('offline'); });
 if ('serviceWorker' in navigator) {
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) location.reload(); });
