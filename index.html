@@ -67,6 +67,8 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolli
 .group h2 .dot{width:12px;height:12px;border-radius:50%;background:var(--c)}
 .group h2 small{margin-left:auto;color:var(--muted);font-size:14px;font-weight:600}
 .group .chips{margin:0}
+.group .sub{margin:0 4px 6px;color:var(--muted);font-size:13px;font-weight:700}
+.group .sub:not(:first-of-type){margin-top:16px}
 ul{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:var(--r,22px);overflow:hidden}
 .group li+li{border-top:1px solid var(--line)}
 .row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;
@@ -185,13 +187,13 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
 :root[data-skin=forest]{--bg:#EEF3E6;--surface:#FFFFFF;--ink:#1B2B16;--muted:#66775C;--line:#DBE5CE;--chip:#E1EAD3;--accent:#4F7A0F;--on-accent:#FFFFFF;--toast-accent:#E4F04A}
 @media (prefers-color-scheme:dark){:root[data-skin=forest]:not([data-theme=light]){--bg:#0F1A12;--surface:#17261B;--ink:#EAF4DF;--muted:#9DB38F;--line:#263A2A;--chip:#1F3324;--accent:#E4F04A;--on-accent:#1B2A05;--toast-accent:#4F7A0F}}
 :root[data-skin=forest][data-theme=dark]{--bg:#0F1A12;--surface:#17261B;--ink:#EAF4DF;--muted:#9DB38F;--line:#263A2A;--chip:#1F3324;--accent:#E4F04A;--on-accent:#1B2A05;--toast-accent:#4F7A0F}
-:root[data-skin=glass]{--bg:#EEF1FA;--surface:rgba(255,255,255,.5);--ink:#12172B;--muted:#576080;--line:rgba(18,23,43,.09);--chip:rgba(255,255,255,.5);--accent:#0A7AF5;--on-accent:#FFFFFF;--toast-accent:#0A7AF5;--sheet:rgba(246,248,255,.72);--toast-bg:rgba(255,255,255,.7);--glass-border:rgba(255,255,255,.7);--glass-hi:rgba(255,255,255,.9);--glass-shadow:rgba(40,60,120,.22);--bgimg:radial-gradient(60% 38% at 8% 0%,#FFC9DB 0,transparent 70%),radial-gradient(50% 38% at 100% 22%,#B5D4FF 0,transparent 70%),radial-gradient(60% 42% at 0% 68%,#D4C2FF 0,transparent 70%),radial-gradient(60% 45% at 100% 100%,#B4EEDC 0,transparent 70%)}
-@media (prefers-color-scheme:dark){:root[data-skin=glass]:not([data-theme=light]){--bg:#0B0E1F;--surface:rgba(255,255,255,.09);--ink:#F3F5FF;--muted:#A3ABCB;--line:rgba(255,255,255,.1);--chip:rgba(255,255,255,.12);--accent:#4DA3FF;--on-accent:#04122E;--toast-accent:#4DA3FF;--sheet:rgba(26,30,54,.78);--toast-bg:rgba(40,46,80,.72);--glass-border:rgba(255,255,255,.18);--glass-hi:rgba(255,255,255,.22);--glass-shadow:rgba(0,0,0,.45);--bgimg:radial-gradient(60% 38% at 8% 0%,#6A2D93 0,transparent 70%),radial-gradient(50% 38% at 100% 22%,#134B8F 0,transparent 70%),radial-gradient(60% 42% at 0% 68%,#8A2A5B 0,transparent 70%),radial-gradient(60% 45% at 100% 100%,#0F6B6B 0,transparent 70%)}}
-:root[data-skin=glass][data-theme=dark]{--bg:#0B0E1F;--surface:rgba(255,255,255,.09);--ink:#F3F5FF;--muted:#A3ABCB;--line:rgba(255,255,255,.1);--chip:rgba(255,255,255,.12);--accent:#4DA3FF;--on-accent:#04122E;--toast-accent:#4DA3FF;--sheet:rgba(26,30,54,.78);--toast-bg:rgba(40,46,80,.72);--glass-border:rgba(255,255,255,.18);--glass-hi:rgba(255,255,255,.22);--glass-shadow:rgba(0,0,0,.45);--bgimg:radial-gradient(60% 38% at 8% 0%,#6A2D93 0,transparent 70%),radial-gradient(50% 38% at 100% 22%,#134B8F 0,transparent 70%),radial-gradient(60% 42% at 0% 68%,#8A2A5B 0,transparent 70%),radial-gradient(60% 45% at 100% 100%,#0F6B6B 0,transparent 70%)}
+:root[data-skin=glass]{--bg:#ECEEF2;--surface:rgba(255,255,255,.3);--ink:#12172B;--muted:#576080;--line:rgba(18,23,43,.09);--chip:rgba(255,255,255,.34);--accent:#0A7AF5;--on-accent:#FFFFFF;--toast-accent:#0A7AF5;--sheet:rgba(244,245,248,.6);--toast-bg:rgba(255,255,255,.55);--glass-border:rgba(255,255,255,.75);--glass-hi:rgba(255,255,255,.95);--glass-shadow:rgba(30,35,50,.18);--bgimg:radial-gradient(60% 38% at 8% 0%,#FAFBFC 0,transparent 70%),radial-gradient(50% 38% at 100% 22%,#D5D9E2 0,transparent 70%),radial-gradient(60% 42% at 0% 68%,#DADDE5 0,transparent 70%),radial-gradient(60% 45% at 100% 100%,#F6F7F9 0,transparent 70%)}
+@media (prefers-color-scheme:dark){:root[data-skin=glass]:not([data-theme=light]){--bg:#0E0F13;--surface:rgba(255,255,255,.06);--ink:#F3F5FF;--muted:#A3ABCB;--line:rgba(255,255,255,.1);--chip:rgba(255,255,255,.09);--accent:#4DA3FF;--on-accent:#04122E;--toast-accent:#4DA3FF;--sheet:rgba(28,30,36,.66);--toast-bg:rgba(44,47,56,.6);--glass-border:rgba(255,255,255,.16);--glass-hi:rgba(255,255,255,.2);--glass-shadow:rgba(0,0,0,.5);--bgimg:radial-gradient(60% 38% at 8% 0%,#2A2D36 0,transparent 70%),radial-gradient(50% 38% at 100% 22%,#1C1F27 0,transparent 70%),radial-gradient(60% 42% at 0% 68%,#22252D 0,transparent 70%),radial-gradient(60% 45% at 100% 100%,#2B2E37 0,transparent 70%)}}
+:root[data-skin=glass][data-theme=dark]{--bg:#0E0F13;--surface:rgba(255,255,255,.06);--ink:#F3F5FF;--muted:#A3ABCB;--line:rgba(255,255,255,.1);--chip:rgba(255,255,255,.09);--accent:#4DA3FF;--on-accent:#04122E;--toast-accent:#4DA3FF;--sheet:rgba(28,30,36,.66);--toast-bg:rgba(44,47,56,.6);--glass-border:rgba(255,255,255,.16);--glass-hi:rgba(255,255,255,.2);--glass-shadow:rgba(0,0,0,.5);--bgimg:radial-gradient(60% 38% at 8% 0%,#2A2D36 0,transparent 70%),radial-gradient(50% 38% at 100% 22%,#1C1F27 0,transparent 70%),radial-gradient(60% 42% at 0% 68%,#22252D 0,transparent 70%),radial-gradient(60% 45% at 100% 100%,#2B2E37 0,transparent 70%)}
 /* Liquid Glass: полупрозрачные стеклянные панели с размытием фона */
 :root[data-skin=glass] ul,:root[data-skin=glass] .field,:root[data-skin=glass] .tabbar,:root[data-skin=glass] .iconbtn,
 :root[data-skin=glass] .chip,:root[data-skin=glass] .tip,:root[data-skin=glass] .toast,:root[data-skin=glass] dialog{
-  -webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%);
+  -webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);
   border:1px solid var(--glass-border);box-shadow:inset 0 1px 0 var(--glass-hi),0 10px 30px -14px var(--glass-shadow)}
 :root[data-skin=glass] .field:focus-within{box-shadow:inset 0 1px 0 var(--glass-hi),0 0 0 2px var(--accent),0 10px 30px -14px var(--glass-shadow)}
 :root[data-skin=glass] .composer{background:transparent}
@@ -372,7 +374,7 @@ const SKINS = {
              vars: { '--r': '24px', '--h1w': '600', '--h1s': 'italic', '--h1ls': '-.01em' } },
   forest:  { name: 'Лес',      sw: '#4F7A0F', light: '#EEF3E6', dark: '#0F1A12', font: "ui-serif,'New York',Georgia,'Times New Roman',serif",
              vars: { '--r': '16px', '--rp': '12px', '--rf': '18px', '--rb': '14px', '--rk': '50% 12% 50% 12%', '--ri': '14px', '--rin': '12px', '--rd': '22px', '--row-h': '66px', '--h1w': '700', '--h1ls': '-.02em' } },
-  glass:   { name: 'Liquid Glass', sw: '#0A7AF5', light: '#EEF1FA', dark: '#0B0E1F', font: "system-ui,-apple-system,'SF Pro Display','Helvetica Neue',sans-serif",
+  glass:   { name: 'Liquid Glass', sw: '#0A7AF5', light: '#ECEEF2', dark: '#0E0F13', font: "system-ui,-apple-system,'SF Pro Display','Helvetica Neue',sans-serif",
              vars: { '--r': '30px', '--rd': '34px', '--rin': '18px', '--h1w': '700', '--h1ls': '-.035em' } }
 };
 const SKIN_VARS = ['--r', '--rp', '--rf', '--rab', '--rb', '--rk', '--ri', '--rin', '--rd', '--row-h', '--h1w', '--h1ls', '--h1s', '--font', '--font-head'];
@@ -795,9 +797,9 @@ function renderHistory() {
 /* --- настройки --- */
 function renderSettings() {
   const themes = [['auto', 'Как в системе'], ['light', 'Светлая'], ['dark', 'Тёмная']];
-  $('#list').innerHTML = `<section class="group"><h2>Оформление</h2><div class="chips">${themes.map(([v, l]) =>
+  $('#list').innerHTML = `<section class="group"><h2>Оформление</h2><p class="sub">Режим</p><div class="chips">${themes.map(([v, l]) =>
       `<button class="chip" type="button" data-act="theme" data-v="${v}" aria-pressed="${state.theme === v}">${l}</button>`).join('')}</div>
-      <div class="chips">${Object.entries(SKINS).map(([k, v]) =>
+      <p class="sub">Дизайн</p><div class="chips">${Object.entries(SKINS).map(([k, v]) =>
       `<button class="chip" type="button" data-act="skin" data-v="${k}" style="--c:${v.sw};font-family:${v.font}" aria-pressed="${state.skin === k}"><i class="dot"></i>${v.name}</button>`).join('')}</div></section>
     <section class="group"><h2>Данные</h2><ul>
       <li><button class="arow" type="button" data-act="export"><span class="nm">Сохранить копию</span><span class="qty">Файл с личным списком, рецептами и историей. Сохраните его в «Файлы» или отправьте себе.</span></button></li>
