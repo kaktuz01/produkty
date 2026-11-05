@@ -397,7 +397,7 @@ const colorOk = c => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c);
 let state = load();
 let tab = 'list';
 let pick = null;               // магазин, выбранный в строке ввода (не сохраняется)
-let members = {}, famUnread = 0, ctxTimer = 0, undoSnap = null, toastTimer = 0, renderTimer = 0;
+let members = {}, seenFull = false, joining = false, famUnread = 0, ctxTimer = 0, undoSnap = null, toastTimer = 0, renderTimer = 0;
 let es = null, pushTimer = 0, pushing = false, syncState = 'off', retryTimer = 0, rsTimer = 0, lastTouch = 0, quietUntil = 0, syncErr = '', pendingClaim = null, afterName = null;
 let fromComposer = false, editingId = null, editStore = null, recipeId = null, recipeEditId = null;
 
@@ -670,7 +670,7 @@ function membersHtml() {
   const me = devId(), t = Date.now();
   const all = { ...members, [me]: { n: state.me, u: t } };
   const list = Object.entries(all)
-    .filter(([id, m]) => id === me || t - m.u < 45 * 864e5)
+    .filter(([id, m]) => id === me || (!m.x && t - m.u < 45 * 864e5))
     .sort((a, b) => (a[0] === me ? -1 : b[0] === me ? 1 : 0) || (b[1].u - a[1].u));
   const rows = list.map(([id, m]) => {
     const self = id === me;
@@ -682,19 +682,33 @@ function membersHtml() {
       <div><span class="nm">${esc(name)}${self ? ' <small>(вы)</small>' : ''}</span><span class="qty">${status}</span></div>`;
     return self
       ? `<li><button class="mrow" type="button" data-act="syncname" aria-label="Изменить своё имя">${inner}</button></li>`
-      : `<li><div class="mrow">${inner}</div></li>`;
+      : `<li><button class="mrow" type="button" data-act="memberdel" data-id="${esc(id)}" aria-label="Убрать из семьи: ${esc(name)}">${inner}</button></li>`;
   }).join('');
-  return `<h2>Участники<small>${list.length}</small></h2><ul>${rows}</ul>`;
+  return `<h2>Участники<small>${list.length}</small></h2><ul>${rows}</ul>${list.length > 1 ? '<p class="hint" style="margin:8px 4px 0">Нажмите на участника, чтобы убрать его из семьи.</p>' : ''}`;
 }
 function updateMembers() {
   const el = $('#members');
   if (el && !document.querySelector('dialog[open]')) el.innerHTML = membersHtml();
 }
 async function beat() {
-  if (!syncActive()) return;
+  const mine = members[devId()];
+  if (!syncActive() || !seenFull || (mine && mine.x)) return;   // не затираем отметку «убран» до первой загрузки списка
   try {
     await fetch(`${SYNC_URL}/lists/${state.sync.id}/members/${devId()}.json`, { method: 'PUT', body: JSON.stringify({ n: state.me || '', u: Date.now() }) });
   } catch (e) {}
+}
+async function removeMember(id) {
+  const m = members[id];
+  if (!m || id === devId()) return;
+  const name = m.n || 'Без имени';
+  if (!(await ask(`Убрать «${name}» из семьи?`, 'Его телефон отключится от списка. Если у него остался код приглашения, он сможет подключиться снова.', 'Убрать'))) return;
+  try {
+    const r = await fetch(`${SYNC_URL}/lists/${state.sync.id}/members/${id}.json`, { method: 'PUT', body: JSON.stringify({ n: m.n, u: Date.now(), x: 1 }) });
+    if (!r.ok) throw new Error('http ' + r.status);
+    members[id] = { n: m.n, u: Date.now(), x: 1 };
+    updateMembers();
+    toast(`«${name}» убран из семьи`);
+  } catch (e) { toast('Нет связи, не удалось убрать'); }
 }
 function leaveMembers(listId) {
   if (!listId) return;
@@ -1244,12 +1258,13 @@ function stopSync() {
 }
 function startSync() {
   stopSync();
+  seenFull = false;
   if (!syncActive()) return;
   setSyncState('connecting');
   let src;
   try { src = new EventSource(listUrl()); } catch (e) { setSyncState('offline'); return; }
   es = src;
-  src.onopen = () => { setSyncState('online'); schedulePush(0); beat(); };
+  src.onopen = () => { setSyncState('online'); schedulePush(0); };
   src.onerror = () => {
     setSyncState('offline');
     if (src.readyState === 2) retryTimer = setTimeout(startSync, 10000);   // соединение закрыто совсем
@@ -1297,18 +1312,30 @@ function applyRemote(snap, full) {
     }
   }
   const okId = id => /^[\w-]{1,40}$/.test(id);
-  let membersChanged = false;
+  let membersChanged = false, kicked = false;
   if (full) { members = {}; membersChanged = true; }
   if (snap.members && typeof snap.members === 'object') {
     for (const [id, r] of Object.entries(snap.members)) {
       if (!okId(id)) continue;
       if (!r || typeof r !== 'object') { if (members[id]) { delete members[id]; membersChanged = true; } continue; }
-      const next = { n: String(r.n || '').slice(0, 20), u: Number(r.u) || 0 };
+      const next = { n: String(r.n || '').slice(0, 20), u: Number(r.u) || 0, x: r.x ? 1 : 0 };
       const prev = members[id];
-      if (!prev || prev.n !== next.n || Math.abs(prev.u - next.u) > 1) membersChanged = true;
-      if (!prev && !full && next.n && id !== devId() && Date.now() >= quietUntil) toast(`Новый участник: ${next.n}`, false, 4000);
+      if (id === devId() && next.x && !(joining && full)) kicked = true;
+      if (!prev || prev.n !== next.n || prev.x !== next.x || Math.abs(prev.u - next.u) > 1) membersChanged = true;
+      if (!prev && !full && !next.x && next.n && id !== devId() && Date.now() >= quietUntil) toast(`Новый участник: ${next.n}`, false, 4000);
       members[id] = next;
     }
+  }
+  if (kicked) {                            // нас убрали из семьи с другого телефона
+    stopSync(); state.sync = { id: null }; state.fam = normList(null); members = {}; seenFull = false;
+    saveLocal(); disablePush(); ctxSoon(); render();
+    toast('Вас убрали из семейного списка', false, 6000);
+    return;
+  }
+  if (full) {
+    seenFull = true;
+    if (joining) { joining = false; if (members[devId()] && members[devId()].x) delete members[devId()]; }   // повторное подключение по коду снимает отметку «убран»
+    beat();
   }
   for (const [id, r] of Object.entries(snap.stores || {})) {
     if (!r || typeof r !== 'object' || !okId(id)) continue;
@@ -1519,7 +1546,7 @@ async function inviteShare() {
 }
 function joinList(id) {
   if (state.sync.id && state.sync.id !== id) leaveMembers(state.sync.id);
-  members = {};
+  members = {}; joining = true;
   state.sync = { id };
   state.fam = normList(null);
   quietUntil = Date.now() + 2000;         // сразу после подключения не сыплем сообщениями о «новых» продуктах
@@ -1607,6 +1634,7 @@ $('#list').addEventListener('click', async e => {
     else if (a === 'theme') { state.theme = act.dataset.v; save(); render(); }
     else if (a === 'skin') { if (SKINS[act.dataset.v]) { state.skin = act.dataset.v; save(); render(); } }
     else if (a === 'export') exportData();
+    else if (a === 'memberdel') removeMember(act.dataset.id);
     else if (a === 'pushtoggle') togglePush();
     else if (a.startsWith('sync')) syncAction(a);
     else if (a === 'import') $('#importFile').click();
