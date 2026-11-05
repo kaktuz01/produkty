@@ -39,9 +39,10 @@ header{padding:16px 20px 4px}
 .top{display:flex;align-items:flex-start;gap:8px}
 .top .ttl{flex:1;min-width:0}
 .acts{display:flex;gap:8px}
-h1{margin:0;font-size:40px;line-height:1.05;font-weight:800;letter-spacing:-.03em}
+h1{margin:0;font-size:40px;line-height:1.05;font-weight:var(--h1w,800);letter-spacing:var(--h1ls,-.03em);font-style:var(--h1s,normal)}
+h1,.group h2,.empty h2,.sheet h3{font-family:var(--font-head,var(--font))}
 .stats{margin:6px 0 0;color:var(--muted);font-size:15px;font-weight:600}
-.iconbtn{flex:none;width:44px;height:44px;border-radius:50%;border:0;background:var(--chip);display:grid;place-items:center}
+.iconbtn{flex:none;width:44px;height:44px;border-radius:var(--ri,50%);border:0;background:var(--chip);display:grid;place-items:center}
 .iconbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .bar{height:6px;border-radius:99px;background:var(--line);margin-top:14px;overflow:hidden}
 .bar i{display:block;height:100%;width:0;background:var(--accent);border-radius:inherit;transition:width .45s ease}
@@ -51,7 +52,7 @@ h1{margin:0;font-size:40px;line-height:1.05;font-weight:800;letter-spacing:-.03e
 .filters::-webkit-scrollbar,.pick::-webkit-scrollbar{display:none}
 .filters{padding:12px 20px 8px}
 .filters:empty{display:none}
-.chip{flex:none;border:0;border-radius:99px;padding:0 14px;min-height:38px;font-size:15px;font-weight:600;background:var(--chip);display:inline-flex;align-items:center;gap:7px}
+.chip{flex:none;border:0;border-radius:var(--rp,99px);padding:0 14px;min-height:38px;font-size:15px;font-weight:600;background:var(--chip);display:inline-flex;align-items:center;gap:7px}
 .chip .dot{width:10px;height:10px;border-radius:50%;background:var(--c,var(--muted))}
 .chip b{font-weight:700;opacity:.6}
 .chip[aria-pressed=true]{background:var(--ink);color:var(--bg)}
@@ -66,11 +67,11 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolli
 .group h2 .dot{width:12px;height:12px;border-radius:50%;background:var(--c)}
 .group h2 small{margin-left:auto;color:var(--muted);font-size:14px;font-weight:600}
 .group .chips{margin:0}
-ul{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:22px;overflow:hidden}
+ul{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:var(--r,22px);overflow:hidden}
 .group li+li{border-top:1px solid var(--line)}
 .row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;
-  min-height:64px;padding:6px 4px 6px 16px;cursor:pointer;-webkit-user-select:none;user-select:none}
-.check{width:32px;height:32px;padding:0;border-radius:50%;border:2.5px solid var(--c);background:transparent;display:grid;place-items:center;transition:background .2s}
+  min-height:var(--row-h,64px);padding:6px 4px 6px 16px;cursor:pointer;-webkit-user-select:none;user-select:none}
+.check{width:32px;height:32px;padding:0;border-radius:var(--rk,50%);border:2.5px solid var(--c);background:transparent;display:grid;place-items:center;transition:background .2s}
 .check svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;
   stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset .25s .05s}
 .row.done .check{background:var(--c)}
@@ -99,7 +100,7 @@ ul{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:22
 .empty p{margin:0 auto;max-width:300px;color:var(--muted);font-size:16px;line-height:1.45;font-weight:500}
 .empty .btn{margin-top:22px}
 
-.tip{display:flex;align-items:center;gap:12px;margin:0 0 16px;padding:12px 8px 12px 16px;border-radius:20px;background:var(--chip);font-size:15px;line-height:1.35;font-weight:500}
+.tip{display:flex;align-items:center;gap:12px;margin:0 0 16px;padding:12px 8px 12px 16px;border-radius:var(--r,20px);background:var(--chip);font-size:15px;line-height:1.35;font-weight:500}
 .tip span{flex:1}
 .tip button{flex:none;border:0;background:var(--ink);color:var(--bg);border-radius:99px;min-height:38px;padding:0 14px;font-weight:700;font-size:14px}
 
@@ -108,12 +109,12 @@ ul{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:22
 .pick{padding:0 0 10px}
 .preview{margin:0 6px 8px;font-size:14px;line-height:1.35;font-weight:600;color:var(--muted);
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.field{display:flex;align-items:center;gap:8px;padding:6px 6px 6px 20px;border-radius:30px;background:var(--surface);
+.field{display:flex;align-items:center;gap:8px;padding:6px 6px 6px 20px;border-radius:var(--rf,30px);background:var(--surface);
   box-shadow:0 0 0 2px var(--line),0 10px 24px -14px rgba(30,27,58,.45)}
 .field:focus-within{box-shadow:0 0 0 2px var(--accent),0 10px 24px -14px rgba(30,27,58,.45)}
 .field input{flex:1;min-width:0;height:46px;border:0;outline:0;background:transparent;color:var(--ink);font:600 17px var(--font)}
 .field input::placeholder{color:var(--muted);font-weight:500}
-.addbtn{flex:none;width:46px;height:46px;border:0;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center}
+.addbtn{flex:none;width:46px;height:46px;border:0;border-radius:var(--rab,50%);background:var(--accent);color:var(--on-accent);display:grid;place-items:center}
 .addbtn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
 
 .tabbar{display:flex;gap:2px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line)}
@@ -135,24 +136,24 @@ ul{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:22
 
 /* sheets */
 dialog{border:0;padding:0;width:100%;max-width:640px;max-height:90dvh;margin:auto auto 0;overflow:auto;
-  border-radius:28px 28px 0 0;background:var(--bg);color:var(--ink);font-family:var(--font)}
+  border-radius:var(--rd,28px) var(--rd,28px) 0 0;background:var(--bg);color:var(--ink);font-family:var(--font)}
 dialog::backdrop{background:rgba(20,18,42,.55)}
 .sheet{padding:22px 20px calc(20px + env(safe-area-inset-bottom))}
 .sheet h3{margin:0 0 16px;font-size:24px;font-weight:800;letter-spacing:-.02em}
 .f{display:block;margin:0 0 16px;font-size:14px;font-weight:600;color:var(--muted)}
-.f input,.f textarea,.sheet .inp{display:block;width:100%;margin-top:6px;padding:0 16px;height:52px;border:0;border-radius:16px;outline:0;
+.f input,.f textarea,.sheet .inp{display:block;width:100%;margin-top:6px;padding:0 16px;height:52px;border:0;border-radius:var(--rin,16px);outline:0;
   background:var(--surface);color:var(--ink);font:600 17px var(--font);box-shadow:0 0 0 2px var(--line)}
 .f textarea{height:auto;min-height:170px;padding:14px 16px;resize:none;line-height:1.4}
 .f input:focus,.f textarea:focus,.sheet .inp:focus{box-shadow:0 0 0 2px var(--accent)}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 20px}
 .actions{display:flex;gap:10px}
-.btn{height:52px;border:0;border-radius:26px;padding:0 22px;font-size:17px;font-weight:700;background:var(--chip)}
+.btn{height:52px;border:0;border-radius:var(--rb,26px);padding:0 22px;font-size:17px;font-weight:700;background:var(--chip)}
 .btn.primary{flex:1;background:var(--accent);color:var(--on-accent)}
 .btn.danger{color:var(--danger)}
 .btn:disabled{opacity:.5}
 .sheet .text{margin:0 0 20px;color:var(--muted);font-size:16px;line-height:1.45;font-weight:500}
 .srow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.srow input{flex:1;min-width:0;height:52px;border:0;border-radius:16px;padding:0 16px;outline:0;background:var(--surface);color:var(--ink);font:600 17px var(--font);box-shadow:0 0 0 2px var(--line)}
+.srow input{flex:1;min-width:0;height:52px;border:0;border-radius:var(--rin,16px);padding:0 16px;outline:0;background:var(--surface);color:var(--ink);font:600 17px var(--font);box-shadow:0 0 0 2px var(--line)}
 .swatch{flex:none;width:44px;height:44px;border-radius:50%;border:0;background:var(--c);box-shadow:inset 0 0 0 3px var(--bg),0 0 0 2px var(--c)}
 .x{flex:none;width:44px;height:44px;border:0;border-radius:50%;background:transparent;color:var(--muted);display:grid;place-items:center}
 .x svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
@@ -168,7 +169,7 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
 
 .sdot{display:inline-block;width:9px;height:9px;margin-right:8px;border-radius:50%;background:#8C89AB}
 .sdot.online{background:#2E8B57}
-.claim{display:block;width:max-content;margin-top:6px;min-height:32px;padding:0 13px;border:0;border-radius:99px;background:var(--chip);color:var(--muted);font-size:13px;font-weight:700}
+.claim{display:block;width:max-content;margin-top:6px;min-height:32px;padding:0 13px;border:0;border-radius:var(--rp,99px);background:var(--chip);color:var(--muted);font-size:13px;font-weight:700}
 .claim.mine{background:var(--accent);color:var(--on-accent)}
 .claim.other{background:var(--ink);color:var(--bg)}
 /* дизайны: цвета для светлого и тёмного режимов */
@@ -202,6 +203,7 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
 :root[data-skin=glass] .chip[aria-pressed=true]{background:var(--ink);color:var(--bg)}
 :root[data-skin=glass] .tip button{background:var(--accent);color:var(--on-accent)}
 :root[data-skin=glass] .f input,:root[data-skin=glass] .f textarea,:root[data-skin=glass] .sheet .inp,:root[data-skin=glass] .srow input,:root[data-skin=glass] #rIngs{background:var(--surface)}
+:root[data-skin=sea] .group h2{text-transform:uppercase;letter-spacing:.07em;font-size:13px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -360,13 +362,20 @@ const PALETTE = ['#E5472E', '#F0A010', '#2E8B57', '#3C5BD9', '#9B4FC9', '#E8648A
 const NONE_COLOR = '#8C89AB';
 // Дизайны: название, цвет образца, цвет строки состояния телефона (светлый и тёмный режим)
 const SKINS = {
-  default: { name: 'Классика', sw: '#E5472E', light: '#F3F1FA', dark: '#14122A' },
-  mint:    { name: 'Мята',     sw: '#168A5A', light: '#EEF7F1', dark: '#0F1F1A' },
-  sea:     { name: 'Море',     sw: '#2563EB', light: '#EAF2FB', dark: '#0B1730' },
-  sunset:  { name: 'Закат',    sw: '#D6246E', light: '#FBEFF4', dark: '#241022' },
-  forest:  { name: 'Лес',      sw: '#4F7A0F', light: '#EEF3E6', dark: '#0F1A12' },
-  glass:   { name: 'Liquid Glass', sw: '#0A7AF5', light: '#EEF1FA', dark: '#0B0E1F' }
+  default: { name: 'Классика', sw: '#E5472E', light: '#F3F1FA', dark: '#14122A', font: "ui-rounded,'SF Pro Rounded',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif", vars: {} },
+  mint:    { name: 'Мята',     sw: '#168A5A', light: '#EEF7F1', dark: '#0F1F1A', font: "'Avenir Next',Avenir,ui-rounded,system-ui,sans-serif",
+             vars: { '--r': '28px', '--row-h': '68px', '--h1w': '700', '--h1ls': '-.02em', '--rd': '32px' } },
+  sea:     { name: 'Море',     sw: '#2563EB', light: '#EAF2FB', dark: '#0B1730', font: "'Helvetica Neue',Helvetica,system-ui,-apple-system,sans-serif",
+             vars: { '--r': '12px', '--rp': '10px', '--rf': '14px', '--rab': '12px', '--rb': '12px', '--rk': '9px', '--ri': '13px', '--rin': '10px', '--rd': '18px', '--row-h': '58px', '--h1ls': '-.04em' } },
+  sunset:  { name: 'Закат',    sw: '#D6246E', light: '#FBEFF4', dark: '#241022', font: "Optima,'Gill Sans',ui-rounded,system-ui,sans-serif",
+             head: "ui-serif,'New York',Georgia,serif",
+             vars: { '--r': '24px', '--h1w': '600', '--h1s': 'italic', '--h1ls': '-.01em' } },
+  forest:  { name: 'Лес',      sw: '#4F7A0F', light: '#EEF3E6', dark: '#0F1A12', font: "ui-serif,'New York',Georgia,'Times New Roman',serif",
+             vars: { '--r': '16px', '--rp': '12px', '--rf': '18px', '--rb': '14px', '--rk': '50% 12% 50% 12%', '--ri': '14px', '--rin': '12px', '--rd': '22px', '--row-h': '66px', '--h1w': '700', '--h1ls': '-.02em' } },
+  glass:   { name: 'Liquid Glass', sw: '#0A7AF5', light: '#EEF1FA', dark: '#0B0E1F', font: "system-ui,-apple-system,'SF Pro Display','Helvetica Neue',sans-serif",
+             vars: { '--r': '30px', '--rd': '34px', '--rin': '18px', '--h1w': '700', '--h1ls': '-.035em' } }
 };
+const SKIN_VARS = ['--r', '--rp', '--rf', '--rab', '--rb', '--rk', '--ri', '--rin', '--rd', '--row-h', '--h1w', '--h1ls', '--h1s', '--font', '--font-head'];
 const LOG_MAX = 500;
 const notifyPending = new Set();   // новые продукты семейного списка, о которых ещё не сообщили остальным
 
@@ -486,6 +495,12 @@ function applyTheme() {
   const metas = $$('meta[name=theme-color]');
   const sk = SKINS[state.skin] || SKINS.default;
   if (state.skin && state.skin !== 'default') root.setAttribute('data-skin', state.skin); else root.removeAttribute('data-skin');
+  SKIN_VARS.forEach(k => root.style.removeProperty(k));           // шрифт и форма элементов зависят от дизайна
+  if (state.skin !== 'default') {
+    root.style.setProperty('--font', sk.font);
+    if (sk.head) root.style.setProperty('--font-head', sk.head);
+    for (const [k, v] of Object.entries(sk.vars)) root.style.setProperty(k, v);
+  }
   if (state.theme === 'auto') {
     root.removeAttribute('data-theme');
     if (metas[0]) metas[0].setAttribute('content', sk.light);
@@ -783,7 +798,7 @@ function renderSettings() {
   $('#list').innerHTML = `<section class="group"><h2>Оформление</h2><div class="chips">${themes.map(([v, l]) =>
       `<button class="chip" type="button" data-act="theme" data-v="${v}" aria-pressed="${state.theme === v}">${l}</button>`).join('')}</div>
       <div class="chips">${Object.entries(SKINS).map(([k, v]) =>
-      `<button class="chip" type="button" data-act="skin" data-v="${k}" style="--c:${v.sw}" aria-pressed="${state.skin === k}"><i class="dot"></i>${v.name}</button>`).join('')}</div></section>
+      `<button class="chip" type="button" data-act="skin" data-v="${k}" style="--c:${v.sw};font-family:${v.font}" aria-pressed="${state.skin === k}"><i class="dot"></i>${v.name}</button>`).join('')}</div></section>
     <section class="group"><h2>Данные</h2><ul>
       <li><button class="arow" type="button" data-act="export"><span class="nm">Сохранить копию</span><span class="qty">Файл с личным списком, рецептами и историей. Сохраните его в «Файлы» или отправьте себе.</span></button></li>
       <li><button class="arow" type="button" data-act="import"><span class="nm">Восстановить из копии</span><span class="qty">Выберите сохранённый файл. Текущие данные будут заменены.</span></button></li>
