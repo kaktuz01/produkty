@@ -16,7 +16,7 @@
 <style>
 :root{
   --bg:#F3F1FA; --surface:#FFFFFF; --ink:#1E1B3A; --muted:#6F6C8C;
-  --line:#E4E0F3; --chip:#E8E4F6; --accent:#E5472E; --on-accent:#FFFFFF; --toast-accent:#FF8A73; --danger:#E5472E;
+  --line:#E4E0F3; --chip:#E8E4F6; --accent:#E5472E; --on-accent:#FFFFFF; --toast-accent:#FF8A73; --danger:#E5472E; --bgimg:linear-gradient(transparent,transparent);
   --font:ui-rounded,"SF Pro Rounded",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
 @media (prefers-color-scheme:dark){
@@ -27,7 +27,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-text-size-adjust:100%}
-body{height:100dvh;overflow:hidden}
+body{height:100dvh;overflow:hidden;background:var(--bgimg),var(--bg)}
 button{font-family:inherit;color:inherit;cursor:pointer}
 button,input,textarea,label,[data-recipe]{touch-action:manipulation}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
@@ -184,6 +184,24 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
 :root[data-skin=forest]{--bg:#EEF3E6;--surface:#FFFFFF;--ink:#1B2B16;--muted:#66775C;--line:#DBE5CE;--chip:#E1EAD3;--accent:#4F7A0F;--on-accent:#FFFFFF;--toast-accent:#E4F04A}
 @media (prefers-color-scheme:dark){:root[data-skin=forest]:not([data-theme=light]){--bg:#0F1A12;--surface:#17261B;--ink:#EAF4DF;--muted:#9DB38F;--line:#263A2A;--chip:#1F3324;--accent:#E4F04A;--on-accent:#1B2A05;--toast-accent:#4F7A0F}}
 :root[data-skin=forest][data-theme=dark]{--bg:#0F1A12;--surface:#17261B;--ink:#EAF4DF;--muted:#9DB38F;--line:#263A2A;--chip:#1F3324;--accent:#E4F04A;--on-accent:#1B2A05;--toast-accent:#4F7A0F}
+:root[data-skin=glass]{--bg:#EEF1FA;--surface:rgba(255,255,255,.5);--ink:#12172B;--muted:#576080;--line:rgba(18,23,43,.09);--chip:rgba(255,255,255,.5);--accent:#0A7AF5;--on-accent:#FFFFFF;--toast-accent:#0A7AF5;--sheet:rgba(246,248,255,.72);--toast-bg:rgba(255,255,255,.7);--glass-border:rgba(255,255,255,.7);--glass-hi:rgba(255,255,255,.9);--glass-shadow:rgba(40,60,120,.22);--bgimg:radial-gradient(60% 38% at 8% 0%,#FFC9DB 0,transparent 70%),radial-gradient(50% 38% at 100% 22%,#B5D4FF 0,transparent 70%),radial-gradient(60% 42% at 0% 68%,#D4C2FF 0,transparent 70%),radial-gradient(60% 45% at 100% 100%,#B4EEDC 0,transparent 70%)}
+@media (prefers-color-scheme:dark){:root[data-skin=glass]:not([data-theme=light]){--bg:#0B0E1F;--surface:rgba(255,255,255,.09);--ink:#F3F5FF;--muted:#A3ABCB;--line:rgba(255,255,255,.1);--chip:rgba(255,255,255,.12);--accent:#4DA3FF;--on-accent:#04122E;--toast-accent:#4DA3FF;--sheet:rgba(26,30,54,.78);--toast-bg:rgba(40,46,80,.72);--glass-border:rgba(255,255,255,.18);--glass-hi:rgba(255,255,255,.22);--glass-shadow:rgba(0,0,0,.45);--bgimg:radial-gradient(60% 38% at 8% 0%,#6A2D93 0,transparent 70%),radial-gradient(50% 38% at 100% 22%,#134B8F 0,transparent 70%),radial-gradient(60% 42% at 0% 68%,#8A2A5B 0,transparent 70%),radial-gradient(60% 45% at 100% 100%,#0F6B6B 0,transparent 70%)}}
+:root[data-skin=glass][data-theme=dark]{--bg:#0B0E1F;--surface:rgba(255,255,255,.09);--ink:#F3F5FF;--muted:#A3ABCB;--line:rgba(255,255,255,.1);--chip:rgba(255,255,255,.12);--accent:#4DA3FF;--on-accent:#04122E;--toast-accent:#4DA3FF;--sheet:rgba(26,30,54,.78);--toast-bg:rgba(40,46,80,.72);--glass-border:rgba(255,255,255,.18);--glass-hi:rgba(255,255,255,.22);--glass-shadow:rgba(0,0,0,.45);--bgimg:radial-gradient(60% 38% at 8% 0%,#6A2D93 0,transparent 70%),radial-gradient(50% 38% at 100% 22%,#134B8F 0,transparent 70%),radial-gradient(60% 42% at 0% 68%,#8A2A5B 0,transparent 70%),radial-gradient(60% 45% at 100% 100%,#0F6B6B 0,transparent 70%)}
+/* Liquid Glass: полупрозрачные стеклянные панели с размытием фона */
+:root[data-skin=glass] ul,:root[data-skin=glass] .field,:root[data-skin=glass] .tabbar,:root[data-skin=glass] .iconbtn,
+:root[data-skin=glass] .chip,:root[data-skin=glass] .tip,:root[data-skin=glass] .toast,:root[data-skin=glass] dialog{
+  -webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%);
+  border:1px solid var(--glass-border);box-shadow:inset 0 1px 0 var(--glass-hi),0 10px 30px -14px var(--glass-shadow)}
+:root[data-skin=glass] .field:focus-within{box-shadow:inset 0 1px 0 var(--glass-hi),0 0 0 2px var(--accent),0 10px 30px -14px var(--glass-shadow)}
+:root[data-skin=glass] .composer{background:transparent}
+:root[data-skin=glass] .toast{background:var(--toast-bg);color:var(--ink)}
+:root[data-skin=glass] dialog{background:var(--sheet);border-bottom:0}
+:root[data-skin=glass] .tabbar{margin:0 12px calc(6px + env(safe-area-inset-bottom));padding:6px;border-radius:32px;background:var(--surface)}
+:root[data-skin=glass] .tab{border-radius:26px}
+:root[data-skin=glass] .tab[aria-current=page]{background:var(--chip);box-shadow:inset 0 1px 0 var(--glass-hi)}
+:root[data-skin=glass] .chip[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+:root[data-skin=glass] .tip button{background:var(--accent);color:var(--on-accent)}
+:root[data-skin=glass] .f input,:root[data-skin=glass] .f textarea,:root[data-skin=glass] .sheet .inp,:root[data-skin=glass] .srow input,:root[data-skin=glass] #rIngs{background:var(--surface)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -346,7 +364,8 @@ const SKINS = {
   mint:    { name: 'Мята',     sw: '#168A5A', light: '#EEF7F1', dark: '#0F1F1A' },
   sea:     { name: 'Море',     sw: '#2563EB', light: '#EAF2FB', dark: '#0B1730' },
   sunset:  { name: 'Закат',    sw: '#D6246E', light: '#FBEFF4', dark: '#241022' },
-  forest:  { name: 'Лес',      sw: '#4F7A0F', light: '#EEF3E6', dark: '#0F1A12' }
+  forest:  { name: 'Лес',      sw: '#4F7A0F', light: '#EEF3E6', dark: '#0F1A12' },
+  glass:   { name: 'Liquid Glass', sw: '#0A7AF5', light: '#EEF1FA', dark: '#0B0E1F' }
 };
 const LOG_MAX = 500;
 const notifyPending = new Set();   // новые продукты семейного списка, о которых ещё не сообщили остальным
@@ -1691,7 +1710,8 @@ $('#reDel').addEventListener('click', () => {
 /* ---------- клавиатура: поведение iOS по умолчанию, без пересчёта размеров ---------- */
 function fit() {
   const c = $('#add'), t = $('#tabs');
-  const below = (c.hidden ? 0 : c.offsetHeight) + t.offsetHeight;
+  const top = (c.hidden ? t : c).getBoundingClientRect().top;
+  const below = Math.max(0, $('#app').getBoundingClientRect().bottom - top);
   document.documentElement.style.setProperty('--toast-b', (below + 10) + 'px');
 }
 window.addEventListener('resize', fit);
