@@ -1,0 +1,7 @@
+name = "produkty-push"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+[vars]
+DB_URL = "https://produkty-sync-default-rtdb.europe-west1.firebasedatabase.app"
