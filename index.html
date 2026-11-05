@@ -321,10 +321,14 @@ const KEY = 'produkty.v1';
 // Общий список: адрес Firebase Realtime Database, например https://xxx-default-rtdb.europe-west1.firebasedatabase.app
 // Пока пусто, раздел «Общий список» скрыт и ничего не отправляется.
 const SYNC_URL = 'https://produkty-sync-default-rtdb.europe-west1.firebasedatabase.app';
+// Сервер уведомлений (Cloudflare Worker из папки worker). Пока пусто, переключатель уведомлений скрыт.
+const PUSH_URL = '';
+const PUSH_KEY = 'produkty.push';
 const TIP_KEY = 'produkty.tip';
 const PALETTE = ['#E5472E', '#F0A010', '#2E8B57', '#3C5BD9', '#9B4FC9', '#E8648A', '#14A3A3', '#7B6A58'];
 const NONE_COLOR = '#8C89AB';
 const LOG_MAX = 500;
+const notifyPending = new Set();   // новые продукты семейного списка, о которых ещё не сообщили остальным
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -335,7 +339,7 @@ const colorOk = c => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c);
 let state = load();
 let tab = 'list';
 let pick = null;               // магазин, выбранный в строке ввода (не сохраняется)
-let famUnread = 0, undoSnap = null, toastTimer = 0, renderTimer = 0;
+let famUnread = 0, ctxTimer = 0, undoSnap = null, toastTimer = 0, renderTimer = 0;
 let es = null, pushTimer = 0, pushing = false, syncState = 'off', retryTimer = 0, rsTimer = 0, lastTouch = 0, quietUntil = 0, syncErr = '', pendingClaim = null, afterName = null;
 let fromComposer = false, editingId = null, editStore = null, recipeId = null, recipeEditId = null;
 
@@ -586,6 +590,7 @@ function famPanel() {
   return `<section class="group"><h2>Семейный список</h2><ul>
     <li><button class="arow" type="button" data-act="syncname"><span class="nm">Ваше имя: ${esc(state.me || 'не указано')}</span><span class="qty">Его видят остальные: кто добавил и кто купит.</span></button></li>
     <li><div class="arow"><span class="nm" id="syncStatus">${esc(syncStatusText())}</span><span class="qty">Продукты и магазины обновляются сразу у всех. Без связи изменения отправятся позже.</span></div></li>
+    ${pushRow()}
     <li><button class="arow" type="button" data-act="syncinvite"><span class="nm">Пригласить</span><span class="qty">Отправить код и ссылку.</span></button></li>
     <li><button class="arow danger" type="button" data-act="syncoff"><span class="nm">Отключиться</span><span class="qty">Список пропадёт с этого телефона, у остальных останется.</span></button></li>
   </ul></section>`;
@@ -882,6 +887,7 @@ function createItem(raw, store, qty) {
   if (dup) return { ok: false, dup: true, name };
   const item = touch({ id: uid(), name, qty: qty || '', store, done: false, by: isFam(L) && state.sync.id ? state.me : '', b: '' });
   L.items.push(item);
+  if (isFam(L) && state.sync.id) notifyPending.add(item.id);
   return { ok: true, item, name };
 }
 
@@ -1209,7 +1215,7 @@ function applyRemote(snap, full) {
     }
   }
   if (dedupe()) changed = true;           // в списке не бывает двух одинаковых продуктов и магазинов
-  if (changed) { saveLocal(); renderSoon(); }
+  if (changed) { saveLocal(); renderSoon(); ctxSoon(); }
   if (full || changed) schedulePush(300);
 }
 
@@ -1258,6 +1264,7 @@ async function push() {
     if (!r.ok) throw new Error('http ' + r.status);
     const D = state.fam.dirty;
     for (const id in sent) if (D[id] === sent[id]) delete D[id];
+    notifyOthers(sent);
     syncErr = '';
     saveLocal();
     if (syncState !== 'online') setSyncState('online');
@@ -1271,6 +1278,87 @@ async function push() {
   }
   pushing = false;
   if (Object.keys(state.fam.dirty).length) schedulePush(300);
+}
+
+/* уведомления: телефон подписывается, запись лежит в Firebase рядом со списком, сервер будит остальных */
+const pushSupported = () => !!(PUSH_URL && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window);
+function pushInfo() { try { return JSON.parse(localStorage.getItem(PUSH_KEY)) || null; } catch (e) { return null; } }
+function setPushInfo(v) { try { if (v) localStorage.setItem(PUSH_KEY, JSON.stringify(v)); else localStorage.removeItem(PUSH_KEY); } catch (e) {} }
+const pushOn = () => { const i = pushInfo(); return !!(i && state.sync.id && i.list === state.sync.id && pushSupported() && Notification.permission === 'granted'); };
+const u8FromB64u = t => Uint8Array.from(atob(t.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+async function endpointHash(ep) {
+  const d = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ep)));
+  return btoa(String.fromCharCode(...d)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '').slice(0, 22);
+}
+async function registerSub(list) {
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    const key = (await (await fetch(PUSH_URL + '/vapid')).text()).trim();
+    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8FromB64u(key) });
+  }
+  const h = await endpointHash(sub.endpoint);
+  const r = await fetch(`${SYNC_URL}/lists/${list}/push/${h}.json`, { method: 'PUT', body: JSON.stringify({ e: sub.endpoint, u: Date.now() }) });
+  if (!r.ok) throw new Error('db ' + r.status);
+  setPushInfo({ list, h });
+}
+async function removeEntry(info) {
+  if (!info) return;
+  try { await fetch(`${SYNC_URL}/lists/${info.list}/push/${info.h}.json`, { method: 'DELETE' }); } catch (e) {}
+}
+async function enablePush() {
+  if (!pushSupported() || !state.sync.id) return;
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { toast('Уведомления запрещены в настройках телефона'); return; }
+    await registerSub(state.sync.id);
+    sendCtx();
+    toast('Уведомления включены');
+  } catch (e) { toast('Не удалось включить: ' + String((e && e.message) || e).slice(0, 50)); }
+}
+async function disablePush() {
+  const info = pushInfo(); setPushInfo(null);
+  await removeEntry(info);
+  try { const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription(); if (sub) await sub.unsubscribe(); } catch (e) {}
+}
+async function pushRebind() {            // сменился список: переносим подписку
+  const info = pushInfo();
+  if (!info || info.list === state.sync.id) return;
+  setPushInfo(null);
+  await removeEntry(info);
+  if (state.sync.id && pushSupported() && Notification.permission === 'granted') { try { await registerSub(state.sync.id); } catch (e) {} }
+  if (tab === 'family') render();
+}
+async function togglePush() {
+  if (pushOn()) { await disablePush(); toast('Уведомления выключены'); }
+  else await enablePush();
+  if (tab === 'family') render();
+}
+function pushRow() {
+  if (!PUSH_URL) return '';
+  if (!pushSupported()) {
+    return `<li><div class="arow"><span class="nm">Уведомления недоступны</span><span class="qty">Добавьте приложение на экран «Домой» (Поделиться → На экран «Домой») и откройте его оттуда.</span></div></li>`;
+  }
+  const on = pushOn();
+  return `<li><button class="arow" type="button" data-act="pushtoggle"><span class="nm">${on ? 'Уведомления включены' : 'Включить уведомления'}</span><span class="qty">${on ? 'Придут, когда кто-то добавит продукт, даже если приложение закрыто. Нажмите, чтобы выключить.' : 'Узнавать, когда кто-то добавил продукт, даже если приложение закрыто.'}</span></button></li>`;
+}
+function notifyOthers(sent) {            // вызывается после успешной отправки в Firebase
+  if (!PUSH_URL || !notifyPending.size) return;
+  const ids = [...notifyPending].filter(id => id in sent);
+  if (!ids.length) return;
+  ids.forEach(id => notifyPending.delete(id));
+  if (!ids.some(id => state.fam.items.some(i => i.id === id && !i.done))) return;
+  const info = pushInfo();
+  fetch(PUSH_URL + '/notify', { method: 'POST', body: JSON.stringify({ list: state.sync.id, from: info && info.list === state.sync.id ? info.h : '' }) }).catch(() => {});
+}
+// Сервис-воркеру нужно знать список и что мы уже видели, чтобы показать только новое
+function ctxSoon() { clearTimeout(ctxTimer); ctxTimer = setTimeout(sendCtx, 400); }
+async function sendCtx() {
+  if (!PUSH_URL || !('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if (reg.active) reg.active.postMessage({ type: 'ctx', db: SYNC_URL, list: state.sync.id, me: state.me, seen: state.fam.items.map(i => i.id) });
+  } catch (e) {}
 }
 
 /* приглашения и подключение */
@@ -1304,6 +1392,7 @@ function joinList(id) {
   startSync();
   tab = 'family'; pick = null; $('#main').scrollTop = 0;
   render();
+  pushRebind(); ctxSoon();
 }
 async function syncAction(a) {
   if (a === 'syncnew') {
@@ -1321,6 +1410,7 @@ async function syncAction(a) {
   } else if (a === 'syncoff') {
     if (await ask('Отключиться от семейного списка?', 'Он пропадёт с этого телефона, у остальных останется. Подключиться снова можно по коду. Ваш личный список не изменится.', 'Отключиться')) {
       stopSync(); state.sync = { id: null }; state.fam = normList(null); saveLocal(); render();
+      disablePush(); ctxSoon();
       toast('Семейный список отключён');
     }
   }
@@ -1379,6 +1469,7 @@ $('#list').addEventListener('click', async e => {
     else if (a === 'readd') readd(act.dataset.name, act.dataset.store);
     else if (a === 'theme') { state.theme = act.dataset.v; save(); render(); }
     else if (a === 'export') exportData();
+    else if (a === 'pushtoggle') togglePush();
     else if (a.startsWith('sync')) syncAction(a);
     else if (a === 'import') $('#importFile').click();
     else if (a === 'clearhist') {
@@ -1505,7 +1596,7 @@ $('#nameForm').addEventListener('submit', e => {
   e.preventDefault();
   const v = $('#who').value.trim().replace(/\s+/g, ' ').slice(0, 20);
   if (!v) return;
-  state.me = v; saveLocal();
+  state.me = v; saveLocal(); ctxSoon();
   const pc = pendingClaim; pendingClaim = null;
   nameDlg.close();
   if (pc) toggleClaim(pc);
@@ -1584,6 +1675,7 @@ $('#item').addEventListener('blur', () => setTimeout(() => {
 }, 150));
 
 /* ---------- запуск ---------- */
+if (location.hash === '#family') { history.replaceState(null, '', location.pathname + location.search); tab = 'family'; }
 applyTheme();
 render();
 startSync();
@@ -1594,7 +1686,8 @@ window.addEventListener('offline', () => { if (syncActive()) setSyncState('offli
 if ('serviceWorker' in navigator) {
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) location.reload(); });
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'open-family') setTab('family'); });
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').then(() => sendCtx()).catch(() => {}));
 }
 })();
 </script>
