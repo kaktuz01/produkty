@@ -7,15 +7,26 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: worker
-          command: deploy
-          secrets: |
-            VAPID_PRIVATE
-        env:
-          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Deploy worker
+        working-directory: worker
+        run: npx --yes wrangler@4 deploy
+      - name: Create VAPID key once (never printed, never leaves Cloudflare)
+        working-directory: worker
+        run: |
+          if npx --yes wrangler@4 secret list | grep -q '"VAPID_PRIVATE"'; then
+            echo "VAPID key already exists"
+          else
+            node -e "
+              const c=require('node:crypto').webcrypto;
+              (async()=>{const k=await c.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+              const j=await c.subtle.exportKey('jwk',k.privateKey);
+              process.stdout.write(JSON.stringify({kty:j.kty,crv:j.crv,x:j.x,y:j.y,d:j.d}));})()
+            " | npx --yes wrangler@4 secret put VAPID_PRIVATE
+          fi
