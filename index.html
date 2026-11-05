@@ -142,6 +142,11 @@ ul{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:va
 .ava{flex:none;width:40px;height:40px;border-radius:50%;background:var(--c);color:#fff;display:grid;place-items:center;font-weight:800;font-size:18px}
 .mrow .sdot{margin-right:6px}
 
+.due.over{color:#E5472E;font-weight:700}
+.due.today{color:#C77A00;font-weight:700}
+.f input[type=date]{min-height:52px}
+.row.task .nm{overflow-wrap:anywhere}
+
 /* sheets */
 dialog{border:0;padding:0;width:100%;max-width:640px;max-height:90dvh;margin:auto auto 0;overflow:auto;
   border-radius:var(--rd,28px) var(--rd,28px) 0 0;background:var(--bg);color:var(--ink);font-family:var(--font)}
@@ -249,13 +254,13 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
       <svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1.3 1.3L7 5M3.5 12l1.3 1.3L7 11M3.5 18l1.3 1.3L7 17"/></svg>Список
     </button>
     <button class="tab" data-tab="family" type="button">
-      <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1"/><circle cx="17" cy="9" r="2.4"/><path d="M17 14a4 4 0 0 1 4 4v2"/></svg>Семья<i class="badge" hidden></i>
+      <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1"/><circle cx="17" cy="9" r="2.4"/><path d="M17 14a4 4 0 0 1 4 4v2"/></svg>Семья
     </button>
-    <button class="tab" data-tab="recipes" type="button">
-      <svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg>Рецепты
+    <button class="tab" data-tab="shop" type="button">
+      <svg viewBox="0 0 24 24"><path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>Покупки<i class="badge" data-badge="shop" hidden></i>
     </button>
-    <button class="tab" data-tab="history" type="button">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>История
+    <button class="tab" data-tab="tasks" type="button">
+      <svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9.5 4h5v2.5h-5zM9 13.5l2 2 4-4"/></svg>Дела<i class="badge" data-badge="tasks" hidden></i>
     </button>
     <button class="tab" data-tab="settings" type="button">
       <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Настройки
@@ -294,27 +299,16 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
   </div>
 </dialog>
 
-<!-- Рецепт: просмотр -->
-<dialog id="recipeDlg" aria-label="Рецепт">
-  <div class="sheet">
-    <h3 id="rTitle"></h3>
-    <div id="rIngs"></div>
+<!-- Дело -->
+<dialog id="taskDlg" aria-label="Изменить дело">
+  <form class="sheet" id="taskForm" autocomplete="off">
+    <h3>Дело</h3>
+    <label class="f">Что нужно сделать<input id="tTitle" type="text" autocomplete="off" maxlength="100" required></label>
+    <div class="f" style="margin-bottom:0">Кому</div>
+    <div class="chips" id="tTo"></div>
+    <label class="f">Срок<input id="tDue" type="date"></label>
     <div class="actions">
-      <button class="btn" type="button" id="rEdit">Изменить</button>
-      <button class="btn primary" type="button" id="rAdd" autofocus>Добавить в список</button>
-    </div>
-  </div>
-</dialog>
-
-<!-- Рецепт: правка -->
-<dialog id="recipeEditDlg" aria-label="Правка рецепта">
-  <form class="sheet" id="recipeForm" autocomplete="off">
-    <h3 id="reHead">Новый рецепт</h3>
-    <label class="f">Название<input id="reTitle" type="text" autocomplete="off" maxlength="60" required placeholder="Например, паста с фаршем"></label>
-    <label class="f">Ингредиенты<textarea id="reText" autocomplete="off" rows="7" maxlength="3000" placeholder="Макароны, 400 г&#10;Фарш, 300 г&#10;Томатная паста&#10;Сыр"></textarea></label>
-    <p class="hint">По одному в строке. Количество можно написать после запятой: «Фарш, 300 г».</p>
-    <div class="actions">
-      <button class="btn danger" type="button" id="reDel" hidden>Удалить</button>
+      <button class="btn danger" type="button" id="tDel">Удалить</button>
       <button class="btn primary" type="submit" autofocus>Сохранить</button>
     </div>
   </form>
@@ -397,13 +391,13 @@ const colorOk = c => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c);
 let state = load();
 let tab = 'list';
 let pick = null;               // магазин, выбранный в строке ввода (не сохраняется)
-let members = {}, seenFull = false, joining = false, famUnread = 0, ctxTimer = 0, undoSnap = null, toastTimer = 0, renderTimer = 0;
+let members = {}, seenFull = false, joining = false, unread = { shop: 0, tasks: 0 }, ctxTimer = 0, undoSnap = null, toastTimer = 0, renderTimer = 0;
 let es = null, pushTimer = 0, pushing = false, syncState = 'off', retryTimer = 0, rsTimer = 0, lastTouch = 0, quietUntil = 0, syncErr = '', pendingClaim = null, afterName = null;
-let fromComposer = false, editingId = null, editStore = null, recipeId = null, recipeEditId = null;
+let fromComposer = false, editingId = null, editStore = null, taskTo = '', taskDue = '', editTaskId = null, editTaskTo = '';
 
 /* ---------- данные ---------- */
 function normList(s) {
-  const out = { items: [], stores: [], view: 'all', dead: {}, dirty: {} };
+  const out = { items: [], stores: [], tasks: [], view: 'all', dead: {}, dirty: {} };
   if (!s || typeof s !== 'object') return out;
   if (Array.isArray(s.stores)) {
     out.stores = s.stores.filter(x => x && x.id && x.name)
@@ -415,6 +409,12 @@ function normList(s) {
                    store: out.stores.some(st => st.id === x.store) ? x.store : null, done: !!x.done, u: Number(x.u) || 0,
                    by: String(x.by || '').slice(0, 20), b: String(x.b || '').slice(0, 20) }));
   }
+  if (Array.isArray(s.tasks)) {
+    out.tasks = s.tasks.filter(x => x && x.id && x.title)
+      .map(x => ({ id: String(x.id), title: String(x.title).slice(0, 100), to: String(x.to || '').slice(0, 40),
+                   due: /^\d{4}-\d{2}-\d{2}$/.test(String(x.due)) ? String(x.due) : '', by: String(x.by || '').slice(0, 20),
+                   b: String(x.b || '').slice(0, 20), done: !!x.done, t: Number(x.t) || 0, u: Number(x.u) || 0 }));
+  }
   for (const key of ['dead', 'dirty']) {
     if (s[key] && typeof s[key] === 'object') {
       for (const [k, v] of Object.entries(s[key])) if (Number(v) > 0) out[key][String(k)] = Number(v);
@@ -423,17 +423,13 @@ function normList(s) {
   return out;
 }
 function normalize(s) {
-  const out = { ...normList(s), log: [], recipes: [], theme: 'auto', skin: 'default', me: '', sync: { id: null }, fam: normList(null) };
+  const out = { ...normList(s), log: [], theme: 'auto', skin: 'default', me: '', sync: { id: null }, fam: normList(null) };
   delete out.dead; delete out.dirty;          // личный список никуда не синхронизируется
   if (!s || typeof s !== 'object') return out;
   if (Array.isArray(s.log)) {
     out.log = s.log.filter(x => x && x.name && Number(x.ts) > 0).slice(-LOG_MAX)
       .map(x => ({ id: String(x.id || uid()), item: String(x.item || ''), name: String(x.name).slice(0, 80),
                    store: x.store ? String(x.store).slice(0, 40) : null, color: colorOk(x.color) ? x.color : null, ts: Number(x.ts) }));
-  }
-  if (Array.isArray(s.recipes)) {
-    out.recipes = s.recipes.filter(x => x && x.id && x.title)
-      .map(x => ({ id: String(x.id), title: String(x.title).slice(0, 60), text: String(x.text || '').slice(0, 3000) }));
   }
   if (['auto', 'light', 'dark'].includes(s.theme)) out.theme = s.theme;
   if (typeof s.skin === 'string' && Object.prototype.hasOwnProperty.call(SKINS, s.skin)) out.skin = s.skin;
@@ -457,7 +453,7 @@ function save() {
 }
 /* Два списка: личный (state.items, только на этом телефоне) и семейный (state.fam, общий).
    LS() даёт тот, что открыт во вкладке. */
-const LS = () => tab === 'family' ? state.fam : state;
+const LS = () => tab === 'shop' ? state.fam : state;
 const isFam = L => L === state.fam;
 const storeOf = (id, L = LS()) => L.stores.find(s => s.id === id);
 
@@ -472,6 +468,7 @@ function touch(e, L = LS()) {
 function kill(id, L = LS()) {
   L.items = L.items.filter(i => i.id !== id);
   L.stores = L.stores.filter(s => s.id !== id);
+  L.tasks = L.tasks.filter(t => t.id !== id);
   if (isFam(L) && state.sync.id) { L.dead[id] = now(); L.dirty[id] = L.dead[id]; }
 }
 function replaceState(next) {   // восстановление, «отменить», удаление всех данных (семейный список не трогаем)
@@ -483,12 +480,13 @@ function restoreFam(nf) {                // «отменить» в семейн
   nf.dead = { ...old.dead }; nf.dirty = { ...old.dirty };
   state.fam = nf;
   if (!state.sync.id) return;
-  const keep = new Set([...nf.items, ...nf.stores].map(e => e.id));
+  const keep = new Set([...nf.items, ...nf.stores, ...nf.tasks].map(e => e.id));
   const t = now();
-  for (const e of [...old.items, ...old.stores]) if (!keep.has(e.id)) { nf.dead[e.id] = t; nf.dirty[e.id] = t; }
+  for (const e of [...old.items, ...old.stores, ...old.tasks]) if (!keep.has(e.id)) { nf.dead[e.id] = t; nf.dirty[e.id] = t; }
   const same = (a, b) => JSON.stringify({ ...a, u: 0 }) === JSON.stringify({ ...b, u: 0 });
   for (const e of nf.items) { const o = old.items.find(x => x.id === e.id); if (!o || !same(o, e)) touch(e, nf); }
   for (const e of nf.stores) { const o = old.stores.find(x => x.id === e.id); if (!o || !same(o, e)) touch(e, nf); }
+  for (const e of nf.tasks) { const o = old.tasks.find(x => x.id === e.id); if (!o || !same(o, e)) touch(e, nf); }
 }
 const exportable = () => { const { sync, fam, ...rest } = state; return rest; };
 
@@ -543,55 +541,65 @@ const ICONS = {
   people: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1"/><circle cx="17" cy="9" r="2.4"/><path d="M17 14a4 4 0 0 1 4 4v2"/></svg>',
   invite: '<svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.5"/><path d="M3 20a7 7 0 0 1 14 0M19 8v6M16 11h6"/></svg>'
 };
-const TITLES = { list: 'Продукты', family: 'Семья', recipes: 'Рецепты', history: 'История', settings: 'Настройки' };
+const TITLES = { list: 'Продукты', family: 'Семья', shop: 'Покупки', tasks: 'Дела', settings: 'Настройки' };
 
-const showsList = () => tab === 'list' || (tab === 'family' && syncActive());
+const showsList = () => tab === 'list' || (tab === 'shop' && syncActive());
+const showsTasks = () => tab === 'tasks' && syncActive();
+const needsFamily = () => (tab === 'shop' || tab === 'tasks') && !syncActive();
+function renderUnreadBadges() { $$('.tab .badge').forEach(b => { b.hidden = !unread[b.dataset.badge]; }); }
 function render() {
   clearTimeout(renderTimer);
   fixView();
   applyTheme();
-  if (tab === 'family') famUnread = 0;
+  if (tab === 'shop') unread.shop = 0;
+  if (tab === 'tasks') unread.tasks = 0;
   renderChrome();
   if (showsList()) { renderFilters(); renderList(); renderPick(); }
   else {
     $('#filters').innerHTML = '';
-    if (tab === 'family') renderFamilyIntro();
-    else if (tab === 'recipes') renderRecipes();
-    else if (tab === 'history') renderHistory();
+    if (showsTasks()) { renderTasks(); renderPick(); }
+    else if (needsFamily()) renderNeedFamily();
+    else if (tab === 'family') renderFamily();
     else renderSettings();
   }
   $$('.tab').forEach(b => b.setAttribute('aria-current', b.dataset.tab === tab ? 'page' : 'false'));
-  $('.tab .badge').hidden = !famUnread;
+  renderUnreadBadges();
   fit();
 }
 
 function renderChrome() {
   $('#title').textContent = TITLES[tab];
-  let stats = '', acts = '';
+  let stats = '', acts = '', bar = null;
   const L = LS();
   if (showsList()) {
     const total = L.items.length;
     const done = L.items.filter(i => i.done).length;
-    stats = total ? `Осталось ${total - done}, куплено ${done}` : (tab === 'family' ? 'Семейный список пока пуст' : 'Список пока пуст');
-    $('#bar').style.width = total ? (done / total * 100) + '%' : '0%';
-    acts = tab === 'family'
-      ? `<button class="iconbtn" data-act="members" aria-label="Кто в семье">${ICONS.people}</button><button class="iconbtn" data-act="syncinvite" aria-label="Пригласить в семейный список">${ICONS.invite}</button>`
-      : `<button class="iconbtn" data-act="share" aria-label="Поделиться списком">${ICONS.share}</button>`;
+    stats = total ? `Осталось ${total - done}, куплено ${done}` : (tab === 'shop' ? 'Общий список пока пуст' : 'Список пока пуст');
+    bar = total ? done / total : 0;
+    acts = tab === 'shop' ? '' : `<button class="iconbtn" data-act="share" aria-label="Поделиться списком">${ICONS.share}</button>`;
     acts += `<button class="iconbtn" data-act="stores" aria-label="Магазины">${ICONS.bag}</button>`;
+  } else if (showsTasks()) {
+    const total = state.fam.tasks.length, done = state.fam.tasks.filter(x => x.done).length;
+    stats = total ? `Открыто ${total - done}, выполнено ${done}` : 'Дел пока нет';
+    bar = total ? done / total : 0;
   } else if (tab === 'family') {
-    stats = 'Один список на всю семью';
-  } else if (tab === 'recipes') {
-    stats = state.recipes.length ? `Сохранено: ${state.recipes.length}` : 'Пока нет сохранённых';
-    acts = `<button class="iconbtn" data-act="newrecipe" aria-label="Новый рецепт">${ICONS.newrecipe}</button>`;
-  } else if (tab === 'history') {
-    stats = state.log.length ? `Покупок: ${state.log.length}` : 'Пока ничего не куплено';
+    if (syncActive()) {
+      stats = `В семье: ${memberList().length}`;
+      acts = `<button class="iconbtn" data-act="syncinvite" aria-label="Пригласить в семью">${ICONS.invite}</button>`;
+    } else stats = 'Покупки и дела для всей семьи';
+  } else if (needsFamily()) {
+    stats = 'Сначала подключитесь к семье';
   } else {
     stats = 'Личные данные хранятся на этом телефоне';
   }
-  $('#stats').innerHTML = (tab === 'family' && syncActive() ? `<i class="sdot ${syncState}" title="Семейный список"></i>` : '') + esc(stats);
+  const famTab = tab === 'family' || tab === 'shop' || tab === 'tasks';
+  $('#stats').innerHTML = (famTab && syncActive() ? `<i class="sdot ${syncState}" title="Семья"></i>` : '') + esc(stats);
   $('#acts').innerHTML = acts;
-  $('#barBox').hidden = !showsList();
-  $('#add').hidden = !showsList();
+  $('#barBox').hidden = bar === null;
+  if (bar !== null) $('#bar').style.width = (bar * 100) + '%';
+  $('#add').hidden = bar === null;
+  $('#item').placeholder = showsTasks() ? 'Что нужно сделать?' : 'Что купить? Можно списком';
+  $('#add .addbtn').setAttribute('aria-label', showsTasks() ? 'Добавить дело' : 'Добавить в список');
 }
 
 function renderFilters() {
@@ -615,7 +623,7 @@ function showTip() {
   return ios && !standalone && !dismissed;
 }
 
-const famOn = () => tab === 'family' && syncActive();
+const famOn = () => tab === 'shop' && syncActive();
 function bylineHtml(i) {
   return famOn() && !i.done && i.by && i.by !== state.me ? `<span class="qty">Добавил: ${esc(i.by)}</span>` : '';
 }
@@ -649,10 +657,23 @@ const syncLabel = () => ({ online: 'Подключено', connecting: 'Подк
 const syncStatusText = () => syncLabel() + (syncState === 'offline' && syncErr ? ' (' + syncErr + ')' : '');
 function updateSyncRow() { const el = $('#syncStatus'); if (el) el.textContent = syncStatusText(); }
 function renderFamilyIntro() {
-  $('#list').innerHTML = `<div class="empty"><h2>Список для всей семьи</h2>
-    <p>Один общий список на всех телефонах: мама добавила сметану, вы увидели и нажали «Я куплю». Ваш личный список останется отдельным.</p>
-    <button class="btn primary" type="button" data-act="syncnew">Создать семейный список</button>
+  $('#list').innerHTML = `<div class="empty"><h2>Семья</h2>
+    <p>Общий список покупок и общие дела для всех телефонов: мама добавила сметану, вы увидели и нажали «Я куплю». Создайте семью и пригласите близких по коду или подключитесь к существующей. Ваш личный список останется отдельным.</p>
+    <button class="btn primary" type="button" data-act="syncnew">Создать семью</button>
     <button class="btn" type="button" data-act="syncjoin">Подключиться по коду</button></div>`;
+}
+function nameBanner() {
+  return state.me ? '' : `<div class="tip"><span>Укажите имя, чтобы близкие видели, кто что добавил.</span><button type="button" data-act="syncname">Указать</button></div>`;
+}
+function renderFamily() {
+  if (!syncActive()) { renderFamilyIntro(); return; }
+  $('#list').innerHTML = nameBanner() + famPanel();
+}
+function renderNeedFamily() {
+  const t = tab === 'tasks'
+    ? ['Дела для всей семьи', 'Здесь семья раздаёт дела: вынести мусор, забрать посылку. Сначала подключитесь к семье.']
+    : ['Общие покупки', 'Один список продуктов на всю семью, с отметкой «Я куплю». Сначала подключитесь к семье.'];
+  $('#list').innerHTML = `<div class="empty"><h2>${t[0]}</h2><p>${t[1]}</p><button class="btn primary" type="button" data-act="gofamily">Перейти в «Семью»</button></div>`;
 }
 /* участники семьи: каждый телефон отмечается в списке и обновляет «был в сети» */
 function devId() {
@@ -666,12 +687,16 @@ const hashColor = id => { let h = 0; for (const c of id) h = (h * 31 + c.charCod
 function seenLabel(u) {
   return `${dayLabel(u).toLowerCase()} в ${timeLabel(u)}`;
 }
-function membersHtml() {
+function memberList() {
   const me = devId(), t = Date.now();
   const all = { ...members, [me]: { n: state.me, u: t } };
-  const list = Object.entries(all)
+  return Object.entries(all)
     .filter(([id, m]) => id === me || (!m.x && t - m.u < 45 * 864e5))
     .sort((a, b) => (a[0] === me ? -1 : b[0] === me ? 1 : 0) || (b[1].u - a[1].u));
+}
+function membersHtml() {
+  const me = devId(), t = Date.now();
+  const list = memberList();
   const rows = list.map(([id, m]) => {
     const self = id === me;
     const name = m.n || 'Без имени';
@@ -718,22 +743,20 @@ setInterval(() => { if (document.visibilityState === 'visible') { beat(); update
 
 function famPanel() {
   return `<section class="group" id="members">${membersHtml()}</section>
-  <section class="group"><h2>Семейный список</h2><ul>
+  <section class="group"><h2>Семья</h2><ul>
     <li><button class="arow" type="button" data-act="syncname"><span class="nm">Ваше имя: ${esc(state.me || 'не указано')}</span><span class="qty">Его видят остальные: кто добавил и кто купит.</span></button></li>
-    <li><div class="arow"><span class="nm" id="syncStatus">${esc(syncStatusText())}</span><span class="qty">Продукты и магазины обновляются сразу у всех. Без связи изменения отправятся позже.</span></div></li>
+    <li><div class="arow"><span class="nm" id="syncStatus">${esc(syncStatusText())}</span><span class="qty">Покупки и дела обновляются сразу у всех. Без связи изменения отправятся позже.</span></div></li>
     ${pushRow()}
     <li><button class="arow" type="button" data-act="syncinvite"><span class="nm">Пригласить</span><span class="qty">Отправить код и ссылку.</span></button></li>
-    <li><button class="arow danger" type="button" data-act="syncoff"><span class="nm">Отключиться</span><span class="qty">Список пропадёт с этого телефона, у остальных останется.</span></button></li>
+    <li><button class="arow danger" type="button" data-act="syncoff"><span class="nm">Отключиться</span><span class="qty">Покупки и дела пропадут с этого телефона, у остальных останутся.</span></button></li>
   </ul></section>`;
 }
 
 function renderList() {
   const gs = getGroups(LS().view);
-  const L = LS(), fam = tab === 'family';
+  const L = LS(), fam = tab === 'shop';
   let h = '';
-  if (fam && !state.me) {
-    h += `<div class="tip"><span>Укажите имя, чтобы близкие видели, кто что добавил.</span><button type="button" data-act="syncname">Указать</button></div>`;
-  }
+  if (fam) h += nameBanner();
   if (!fam && showTip()) {
     h += `<div class="tip"><span>Добавьте на экран «Домой»: «Поделиться» → «На экран „Домой“».</span><button type="button" data-act="tip">Понятно</button></div>`;
   }
@@ -742,9 +765,8 @@ function renderList() {
     h += L.items.length
       ? `<div class="empty"><h2>Здесь пока ничего</h2><p>Для этого магазина нет продуктов. Выберите его в строке ввода внизу и добавьте первый.</p></div>`
       : (fam
-        ? `<div class="empty"><h2>Семейный список пуст</h2><p>Впишите продукт внизу: остальные увидят его сразу. Отправьте приглашение кнопкой вверху, чтобы близкие подключились.</p></div>`
+        ? `<div class="empty"><h2>Общий список пуст</h2><p>Впишите продукт внизу: остальные увидят его сразу и смогут нажать «Я куплю».</p></div>`
         : `<div class="empty"><h2>Пока пусто</h2><p>Впишите продукт внизу и нажмите «+». Можно сразу несколько: «молоко, хлеб и 2 кг яблок». Или нажмите микрофон на клавиатуре и надиктуйте.</p></div>`);
-    if (fam) h += famPanel();
     $('#list').innerHTML = h;
     return;
   }
@@ -760,7 +782,6 @@ function renderList() {
     h += `<section class="group">${g.name ? `<h2><i class="dot" style="--c:${g.color}"></i>${esc(g.name)}<small>${left ? left : 'всё куплено'}</small></h2>` : ''}<ul>${rows}</ul></section>`;
   }
   h += '<div id="clearBox"></div>';
-  if (fam) h += famPanel();
   $('#list').innerHTML = h;
   renderClear();
 }
@@ -783,6 +804,7 @@ function updateGroupCounts() {
 }
 
 function renderPick() {
+  if (tab === 'tasks') { renderTaskPick(); return; }
   if (pick && !storeOf(pick)) pick = null;
   let h;
   if (LS().stores.length) {
@@ -795,30 +817,7 @@ function renderPick() {
   $('#pick').innerHTML = h;
 }
 
-/* --- рецепты --- */
-function parseIngredients(text) {
-  return String(text).split('\n').map(l => l.trim()).filter(Boolean).map(l => {
-    const m = l.match(/^(.*?)\s*(?:[,;]|\s[—–-]\s)\s*(.+)$/);
-    const name = m ? (m[1].trim() || l) : l;
-    return { name: name.slice(0, 80), qty: m ? m[2].trim().slice(0, 60) : '' };
-  }).slice(0, 60);
-}
-
-function renderRecipes() {
-  const box = $('#list');
-  if (!state.recipes.length) {
-    box.innerHTML = `<div class="empty"><h2>Рецептов пока нет</h2><p>Сохраните блюдо с ингредиентами, а потом добавляйте их в список одним нажатием.</p><button class="btn primary" type="button" data-act="newrecipe">Добавить рецепт</button></div>`;
-    return;
-  }
-  const rows = state.recipes.map(r => {
-    const ing = parseIngredients(r.text);
-    const prev = ing.slice(0, 4).map(i => i.name).join(', ') + (ing.length > 4 ? '…' : '');
-    return `<li><button class="rrow" type="button" data-recipe="${r.id}"><div><span class="nm">${esc(r.title)}</span><span class="qty">${ing.length ? esc(prev) : 'Без ингредиентов'}</span></div><span class="cnt">${ing.length}</span></button></li>`;
-  }).join('');
-  box.innerHTML = `<section class="group"><ul>${rows}</ul></section>`;
-}
-
-/* --- история --- */
+/* --- даты --- */
 const dayKey = ts => { const d = new Date(ts); return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(); };
 function dayLabel(ts) {
   const now = new Date(), d = new Date(ts), k = dayKey(ts);
@@ -831,38 +830,155 @@ function dayLabel(ts) {
 }
 const timeLabel = ts => new Date(ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
-function renderHistory() {
-  const box = $('#list');
-  if (!state.log.length) {
-    box.innerHTML = `<div class="empty"><h2>Пока пусто</h2><p>Когда вы отметите продукт купленным, он появится здесь, и его можно будет добавить в список снова.</p></div>`;
+/* --- Дела --- */
+const pad2 = n => String(n).padStart(2, '0');
+const ymd = d => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+function dueShift(days) { const d = new Date(); d.setDate(d.getDate() + days); return ymd(d); }
+function dueInfo(due) {
+  if (!due) return null;
+  const [y, m, d] = due.split('-').map(Number);
+  const a = new Date(y, m - 1, d), b = new Date(); b.setHours(0, 0, 0, 0);
+  const diff = Math.round((a - b) / 864e5);
+  const dm = a.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', '');
+  if (diff < 0) return { cls: 'over', text: `просрочено, ${dm}`, diff };
+  if (diff === 0) return { cls: 'today', text: 'сегодня', diff };
+  if (diff === 1) return { cls: '', text: 'завтра', diff };
+  return { cls: '', text: 'до ' + dm, diff };
+}
+function memberName(id) {
+  if (id === devId()) return state.me || 'вы';
+  return (members[id] && members[id].n) || 'участник';
+}
+function taskTargets() {             // кому можно поручить: все участники, кроме убранных
+  return memberList().map(([id, m]) => ({ id, name: id === devId() ? 'Мне' : (m.n || 'Без имени') }));
+}
+function renderTaskPick() {
+  const to = taskTargets();
+  if (taskTo && !to.some(x => x.id === taskTo)) taskTo = '';
+  let h = '<span class="lbl">Кому</span>'
+    + `<button type="button" class="chip sm" data-to="" aria-pressed="${taskTo === ''}">Всем</button>`
+    + to.map(x => `<button type="button" class="chip sm" data-to="${esc(x.id)}" aria-pressed="${taskTo === x.id}">${esc(x.name)}</button>`).join('')
+    + '<span class="lbl" style="margin-left:6px">Срок</span>'
+    + `<button type="button" class="chip sm" data-due="today" aria-pressed="${taskDue === 'today'}">Сегодня</button>`
+    + `<button type="button" class="chip sm" data-due="tomorrow" aria-pressed="${taskDue === 'tomorrow'}">Завтра</button>`;
+  $('#pick').innerHTML = h;
+}
+function taskMeta(t) {
+  const me = devId(), parts = [];
+  if (t.done) {
+    parts.push(`Сделал${t.b ? ': ' + esc(t.b) : ''}${t.t ? ', ' + esc(dayLabel(t.t).toLowerCase()) + ' в ' + timeLabel(t.t) : ''}`);
+  } else {
+    if (t.to) parts.push(t.to === me ? '<b>Для вас</b>' : 'Для: ' + esc(memberName(t.to)));
+    const d = dueInfo(t.due);
+    if (d) parts.push(`<span class="due ${d.cls}">${esc(d.text)}</span>`);
+    if (t.by && t.by !== state.me) parts.push('Добавил: ' + esc(t.by));
+  }
+  return parts.join(' · ');
+}
+function taskClaimHtml(t) {
+  if (t.done || t.to) return '';
+  const mine = !!state.me && t.b === state.me;
+  const cls = mine ? 'claim mine' : (t.b ? 'claim other' : 'claim');
+  const label = mine || !t.b ? 'Я сделаю' : `Сделает: ${esc(t.b)}`;
+  return `<button class="${cls}" type="button" data-act="tclaim" aria-pressed="${mine}">${mine ? '✓ ' : ''}${label}</button>`;
+}
+const taskInner = t => `<span class="nm">${esc(t.title)}</span>${taskMeta(t) ? `<span class="qty">${taskMeta(t)}</span>` : ''}${taskClaimHtml(t)}`;
+function taskColor(t) {
+  const d = t.done ? null : dueInfo(t.due);
+  return d && d.cls === 'over' ? '#E5472E' : (d && d.cls === 'today' ? '#F0A010' : 'var(--accent)');
+}
+function taskRow(t) {
+  return `<li class="row task${t.done ? ' done' : ''}" data-id="${t.id}" style="--c:${taskColor(t)}">
+    <button class="check" type="button" aria-label="Сделано: ${esc(t.title)}" aria-pressed="${t.done}">${ICONS.check}</button>
+    <div>${taskInner(t)}</div>
+    <button class="more" type="button" data-act="tedit" aria-label="Изменить: ${esc(t.title)}">${ICONS.more}</button>
+  </li>`;
+}
+function renderTasks() {
+  const F = state.fam;
+  let h = nameBanner();
+  if (!F.tasks.length) {
+    h += `<div class="empty"><h2>Дел пока нет</h2><p>Впишите дело внизу: «Вынести мусор», «Забрать посылку». Можно выбрать, кому оно, и срок. Остальные увидят его сразу и смогут нажать «Я сделаю».</p></div>`;
+    $('#list').innerHTML = h;
     return;
   }
-  const map = new Map();
-  for (const e of state.log) {
-    const k = e.name.toLowerCase();
-    const m = map.get(k) || { name: e.name, store: e.store, count: 0, last: 0 };
-    m.count++;
-    if (e.ts >= m.last) { m.last = e.ts; m.name = e.name; m.store = e.store; }
-    map.set(k, m);
-  }
-  const freq = [...map.values()].filter(m => m.count > 1).sort((a, b) => b.count - a.count || b.last - a.last).slice(0, 8);
-  let h = '';
-  if (freq.length) {
-    h += `<section class="group"><h2>Часто покупаете</h2><div class="chips">` + freq.map(m =>
-      `<button class="chip" type="button" data-act="readd" data-name="${esc(m.name)}" data-store="${esc(m.store || '')}">${esc(m.name)} <b>×${m.count}</b></button>`).join('') + `</div></section>`;
-  }
-  const events = [...state.log].sort((a, b) => b.ts - a.ts).slice(0, 200);
-  let key = null, rows = '', label = '';
-  const flush = () => { if (rows) h += `<section class="group"><h2>${esc(label)}</h2><ul>${rows}</ul></section>`; rows = ''; };
-  for (const e of events) {
-    const k = dayKey(e.ts);
-    if (k !== key) { flush(); key = k; label = dayLabel(e.ts); }
-    const where = e.store ? `<i class="dot" style="--c:${e.color || NONE_COLOR}"></i>${esc(e.store)}, ` : '';
-    rows += `<li class="hrow"><div><span class="nm">${esc(e.name)}</span><span class="qty">${where}${timeLabel(e.ts)}</span></div>
-      <button class="more add" type="button" data-act="readd" data-name="${esc(e.name)}" data-store="${esc(e.store || '')}" aria-label="Добавить снова: ${esc(e.name)}">${ICONS.plus}</button></li>`;
-  }
-  flush();
-  box.innerHTML = h;
+  const key = t => t.due ? t.due : '9999';
+  const open = F.tasks.filter(t => !t.done).sort((a, b) => key(a).localeCompare(key(b)) || b.u - a.u);
+  const done = F.tasks.filter(t => t.done).sort((a, b) => b.t - a.t);
+  if (open.length) h += `<section class="group"><h2>Нужно сделать<small id="tOpenN">${open.length}</small></h2><ul>${open.map(taskRow).join('')}</ul></section>`;
+  else h += `<div class="empty" style="padding:28px 24px"><h2>Всё сделано</h2><p>Открытых дел нет.</p></div>`;
+  if (done.length) h += `<section class="group"><h2>Выполнено<small id="tDoneN">${done.length}</small></h2><ul>${done.map(taskRow).join('')}</ul></section><div id="clearBox"></div>`;
+  $('#list').innerHTML = h;
+  renderTasksClear();
+}
+function renderTasksClear() {
+  const box = $('#clearBox');
+  if (!box) return;
+  const n = state.fam.tasks.filter(t => t.done).length;
+  box.innerHTML = n ? `<button class="clear" type="button" data-act="tclear">Убрать выполненные (${n})</button>` : '';
+}
+function addTask(raw) {
+  const title = String(raw).trim().replace(/\s+/g, ' ').slice(0, 100);
+  if (!title) return false;
+  const F = state.fam, name = title[0].toUpperCase() + title.slice(1);
+  if (F.tasks.some(t => !t.done && t.to === taskTo && t.title.toLowerCase() === name.toLowerCase())) { toast(`«${name}» уже есть в делах`); return false; }
+  const due = taskDue === 'today' ? dueShift(0) : taskDue === 'tomorrow' ? dueShift(1) : '';
+  const t = touch({ id: uid(), title: name, to: taskTo, due, by: state.me, b: '', done: false, t: 0 }, F);
+  F.tasks.push(t);
+  notifyPending.add(t.id);
+  taskTo = ''; taskDue = '';
+  save(); render();
+  const row = document.querySelector(`.row[data-id="${t.id}"]`);
+  if (row) row.scrollIntoView({ block: 'nearest' });
+  return true;
+}
+function toggleTask(id, row) {
+  const t = state.fam.tasks.find(x => x.id === id);
+  if (!t) return;
+  t.done = !t.done;
+  t.b = t.done ? state.me : '';
+  t.t = t.done ? Date.now() : 0;
+  touch(t, state.fam); save();
+  row.classList.toggle('done', t.done);
+  row.querySelector('.check').setAttribute('aria-pressed', t.done);
+  row.querySelector('div').innerHTML = taskInner(t);          // строка остаётся на месте
+  row.style.setProperty('--c', taskColor(t));
+  renderChrome();
+  const open = $$('#list .row.task:not(.done)').length, dn = $$('#list .row.task.done').length;
+  const a = $('#tOpenN'), b = $('#tDoneN');
+  if (a) a.textContent = open;
+  if (b) b.textContent = dn;
+  renderTasksClear();
+}
+function toggleTaskClaim(id) {
+  const t = state.fam.tasks.find(x => x.id === id);
+  if (!t) return;
+  if (!state.me) { openName(); return; }
+  t.b = t.b === state.me ? '' : state.me;
+  touch(t, state.fam); save();
+  const row = document.querySelector(`.row[data-id="${id}"]`);
+  if (row) row.querySelector('div').innerHTML = taskInner(t);
+}
+function clearDoneTasks() {
+  const ids = state.fam.tasks.filter(t => t.done).map(t => t.id);
+  if (!ids.length) return;
+  snapshot(true);
+  ids.forEach(id => kill(id, state.fam));
+  save(); render();
+  toast(`Убрано: ${ids.length}`, true);
+}
+function renderTaskTo() {
+  $('#tTo').innerHTML = [{ id: '', name: 'Всем' }, ...taskTargets()].map(x =>
+    `<button type="button" class="chip" data-to="${esc(x.id)}" aria-pressed="${editTaskTo === x.id}">${esc(x.name)}</button>`).join('');
+}
+function openTask(id) {
+  const t = state.fam.tasks.find(x => x.id === id);
+  if (!t) return;
+  editTaskId = id; editTaskTo = t.to;
+  $('#tTitle').value = t.title;
+  $('#tDue').value = t.due;
+  renderTaskTo();
+  taskDlg.showModal();
 }
 
 /* --- настройки --- */
@@ -873,12 +989,11 @@ function renderSettings() {
       <p class="sub">Дизайн</p><div class="chips">${Object.entries(SKINS).map(([k, v]) =>
       `<button class="chip" type="button" data-act="skin" data-v="${k}" style="--c:${v.sw};font-family:${v.font}" aria-pressed="${state.skin === k}"><i class="dot"></i>${v.name}</button>`).join('')}</div></section>
     <section class="group"><h2>Данные</h2><ul>
-      <li><button class="arow" type="button" data-act="export"><span class="nm">Сохранить копию</span><span class="qty">Файл с личным списком, рецептами и историей. Сохраните его в «Файлы» или отправьте себе.</span></button></li>
+      <li><button class="arow" type="button" data-act="export"><span class="nm">Сохранить копию</span><span class="qty">Файл с личным списком. Сохраните его в «Файлы» или отправьте себе.</span></button></li>
       <li><button class="arow" type="button" data-act="import"><span class="nm">Восстановить из копии</span><span class="qty">Выберите сохранённый файл. Текущие данные будут заменены.</span></button></li>
-      <li><button class="arow" type="button" data-act="clearhist"><span class="nm">Очистить историю</span><span class="qty">Списки и рецепты останутся на месте.</span></button></li>
-      <li><button class="arow danger" type="button" data-act="wipe"><span class="nm">Удалить все данные</span><span class="qty">Личный список, магазины, рецепты и историю. Семейный список не затрагивается.</span></button></li>
+      <li><button class="arow danger" type="button" data-act="wipe"><span class="nm">Удалить все данные</span><span class="qty">Личный список и магазины. Семья, покупки и дела не затрагиваются.</span></button></li>
     </ul></section>
-    <p class="hint foot">Личный список, рецепты и история хранятся только на этом телефоне. Семейный список хранится в облаке и доступен тем, у кого есть код приглашения. Если Safari очистит данные сайта, личные данные пропадут, поэтому иногда сохраняйте копию.</p>`;
+    <p class="hint foot">Личный список хранится только на этом телефоне. Покупки и дела семьи хранятся в облаке и доступны тем, у кого есть код приглашения. Если Safari очистит данные сайта, личные данные пропадут, поэтому иногда сохраняйте копию.</p>`;
 }
 
 /* ---------- действия ---------- */
@@ -890,7 +1005,7 @@ function toast(msg, canUndo, ms) {
   toastTimer = setTimeout(() => $('#toast').classList.remove('show'), ms || (canUndo ? 6000 : 2400));
 }
 const snapshot = listScope => {          // listScope: правка продуктов и магазинов открытого списка
-  undoSnap = listScope && tab === 'family' ? { fam: true, data: JSON.stringify(state.fam) } : { fam: false, data: JSON.stringify(state) };
+  undoSnap = listScope && (tab === 'shop' || tab === 'tasks') ? { fam: true, data: JSON.stringify(state.fam) } : { fam: false, data: JSON.stringify(state) };
 };
 
 /* ---------- умный ввод: «молоко, хлеб и два килограмма яблок» ---------- */
@@ -1001,7 +1116,7 @@ function guessStore(name) {
 const cap = x => x ? x[0].toUpperCase() + x.slice(1) : x;
 function updatePreview() {
   const box = $('#preview');
-  const items = parseInput($('#item').value);
+  const items = tab === 'tasks' ? [] : parseInput($('#item').value);
   if (items.length > 1 || items.some(i => i.qty)) {
     box.textContent = 'Добавится: ' + items.map(i => cap(i.name) + (i.qty ? ` (${i.qty})` : '')).join(', ');
     box.hidden = false;
@@ -1044,15 +1159,6 @@ function addItem(raw) {
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
   if (parsed.length > 1) toast(`Добавлено: ${added}` + (dups ? `, уже были: ${dups}` : ''));
   return true;
-}
-
-function readd(name, storeName) {
-  const st = LS().stores.find(s => s.name === storeName);
-  const r = createItem(name, st ? st.id : null);
-  if (r.dup) { toast(`«${r.name}» уже в списке`); return; }
-  if (!r.ok) return;
-  save(); render();
-  toast(`В списке: ${r.name}`);
 }
 
 function logPurchase(it) {
@@ -1117,14 +1223,13 @@ async function shareList() {
 
 function setTab(t) {
   if (t === tab) { $('#main').scrollTop = 0; return; }
-  tab = t; pick = null;
+  tab = t; pick = null; taskTo = ''; taskDue = '';
   $('#main').scrollTop = 0;
   render();
 }
 
 /* --- диалоги --- */
-const editDlg = $('#editDlg'), storesDlg = $('#storesDlg'), recipeDlg = $('#recipeDlg'),
-      recipeEditDlg = $('#recipeEditDlg'), confirmDlg = $('#confirmDlg'), joinDlg = $('#joinDlg'), nameDlg = $('#nameDlg');
+const taskDlg = $('#taskDlg'), editDlg = $('#editDlg'), storesDlg = $('#storesDlg'), confirmDlg = $('#confirmDlg'), joinDlg = $('#joinDlg'), nameDlg = $('#nameDlg');
 
 function ask(title, text, ok) {
   return new Promise(res => {
@@ -1169,36 +1274,6 @@ function openStores(fromPick) {
   renderStores();
   storesDlg.showModal();
   if (fromPick) $('#sShop').focus();
-}
-
-/* рецепты */
-function updateRecipeBtn() {
-  const n = $$('#rIngs input:checked').length;
-  const b = $('#rAdd');
-  b.textContent = n ? `Добавить (${n})` : 'Добавить';
-  b.disabled = !n;
-}
-function openRecipe(id) {
-  const r = state.recipes.find(x => x.id === id);
-  if (!r) return;
-  recipeId = id;
-  $('#rTitle').textContent = r.title;
-  const ing = parseIngredients(r.text);
-  $('#rIngs').hidden = !ing.length;
-  $('#rIngs').innerHTML = ing.map((x, i) =>
-    `<label class="ing"><input type="checkbox" data-i="${i}" checked><span class="nm">${esc(x.name)}</span>${x.qty ? `<span class="q2">${esc(x.qty)}</span>` : ''}</label>`).join('');
-  updateRecipeBtn();
-  recipeDlg.showModal();
-}
-function openRecipeEdit(id) {
-  const r = id ? state.recipes.find(x => x.id === id) : null;
-  recipeEditId = r ? r.id : null;
-  $('#reHead').textContent = r ? 'Рецепт' : 'Новый рецепт';
-  $('#reTitle').value = r ? r.title : '';
-  $('#reText').value = r ? r.text : '';
-  $('#reDel').hidden = !r;
-  recipeEditDlg.showModal();
-  if (!r) $('#reTitle').focus();
 }
 
 /* данные */
@@ -1297,13 +1372,14 @@ function onStream(ev, isPatch) {
 function applyRemote(snap, full) {
   const F = state.fam;
   let changed = false;
-  const quiet = Date.now() < quietUntil, fresh = [];
+  const quiet = Date.now() < quietUntil, fresh = [], freshTasks = [];
   const dead = snap.dead && typeof snap.dead === 'object' ? snap.dead : {};
   for (const [id, raw] of Object.entries(dead)) {
     const n = Number(raw);
     if (!(n > 0)) continue;
     if (n > (F.dead[id] || 0)) { F.dead[id] = n; changed = true; }
-    const it = F.items.find(i => i.id === id), st = storeOf(id, F);
+    const it = F.items.find(i => i.id === id), st = storeOf(id, F), tk = F.tasks.find(x => x.id === id);
+    if (tk && tk.u <= n) { F.tasks = F.tasks.filter(x => x !== tk); delete F.dirty[id]; changed = true; }
     if (it && it.u <= n) { F.items = F.items.filter(i => i !== it); delete F.dirty[id]; changed = true; }
     if (st && st.u <= n) {
       F.stores = F.stores.filter(x => x !== st);
@@ -1360,16 +1436,33 @@ function applyRemote(snap, full) {
     if (!cur) { F.items.push(next); changed = true; if (!next.done && next.by !== state.me) fresh.push(next); }
     else if (u > cur.u) { Object.assign(cur, next); delete F.dirty[id]; changed = true; }
   }
+  for (const [id, r] of Object.entries(snap.tasks || {})) {
+    if (!r || typeof r !== 'object' || !okId(id)) continue;
+    const u = Number(r.u) || 0;
+    if ((F.dead[id] || 0) >= u) continue;
+    const next = { id, title: String(r.n || '').slice(0, 100), to: String(r.s || '').slice(0, 40),
+                   due: /^\d{4}-\d{2}-\d{2}$/.test(String(r.r)) ? String(r.r) : '', by: String(r.a || '').slice(0, 20),
+                   b: String(r.b || '').slice(0, 20), done: !!r.d, t: Number(r.t) || 0, u };
+    if (!next.title) continue;
+    const cur = F.tasks.find(x => x.id === id);
+    if (!cur) { F.tasks.push(next); changed = true; if (!next.done && next.by !== state.me) freshTasks.push(next); }
+    else if (u > cur.u) { Object.assign(cur, next); delete F.dirty[id]; changed = true; }
+  }
+  if (freshTasks.length && !quiet) {
+    const by = [...new Set(freshTasks.map(x => x.by).filter(Boolean))].join(', ');
+    toast(`Новое дело${by ? ' (' + by + ')' : ''}: ${freshTasks.slice(0, 2).map(x => x.title).join(', ')}${freshTasks.length > 2 ? ` и ещё ${freshTasks.length - 2}` : ''}`, false, 5000);
+    if (tab !== 'tasks') { unread.tasks += freshTasks.length; renderUnreadBadges(); }
+  }
   if (fresh.length && !quiet) {            // сообщение, когда кто-то добавил продукт
     const by = [...new Set(fresh.map(x => x.by).filter(Boolean))].join(', ');
     const names = fresh.slice(0, 3).map(x => x.name).join(', ') + (fresh.length > 3 ? ` и ещё ${fresh.length - 3}` : '');
     toast(`Новое в «Семье»${by ? ' (' + by + ')' : ''}: ${names}`, false, 5000);
-    if (tab !== 'family') { famUnread += fresh.length; $('.tab .badge').hidden = false; }
+    if (tab !== 'shop') { unread.shop += fresh.length; renderUnreadBadges(); }
   }
   if (full) {
     // что есть у нас, но нет в общем списке (и не удалено), отправляем туда
-    const remoteIds = new Set([...Object.keys(snap.items || {}), ...Object.keys(snap.stores || {}), ...Object.keys(dead)]);
-    for (const e of [...F.items, ...F.stores]) {
+    const remoteIds = new Set([...Object.keys(snap.items || {}), ...Object.keys(snap.stores || {}), ...Object.keys(snap.tasks || {}), ...Object.keys(dead)]);
+    for (const e of [...F.items, ...F.stores, ...F.tasks]) {
       if (!remoteIds.has(e.id) && !(F.dead[e.id] >= e.u)) F.dirty[e.id] = e.u;
     }
   }
@@ -1411,10 +1504,11 @@ async function push() {
   const payload = {}, sent = {};
   for (const id of ids) {
     sent[id] = F.dirty[id];
-    const it = F.items.find(i => i.id === id), st = storeOf(id, F), dead = F.dead[id] || 0;
-    if (it && it.u > dead) payload['items/' + id] = { n: it.name, q: it.qty, s: it.store, d: it.done, u: it.u, a: it.by, b: it.b };
+    const it = F.items.find(i => i.id === id), st = storeOf(id, F), tk = F.tasks.find(x => x.id === id), dead = F.dead[id] || 0;
+    if (tk && tk.u > dead) payload['tasks/' + id] = { n: tk.title, a: tk.by, s: tk.to, r: tk.due, b: tk.b, d: tk.done, t: tk.t, u: tk.u };
+    else if (it && it.u > dead) payload['items/' + id] = { n: it.name, q: it.qty, s: it.store, d: it.done, u: it.u, a: it.by, b: it.b };
     else if (st && st.u > dead) payload['stores/' + id] = { n: st.name, c: st.color, u: st.u };
-    else if (dead) { payload['dead/' + id] = dead; payload['items/' + id] = null; payload['stores/' + id] = null; }
+    else if (dead) { payload['dead/' + id] = dead; payload['items/' + id] = null; payload['stores/' + id] = null; payload['tasks/' + id] = null; }
     else { delete F.dirty[id]; delete sent[id]; }
   }
   if (!Object.keys(payload).length) { saveLocal(); return; }
@@ -1507,7 +1601,7 @@ function notifyOthers(sent) {            // вызывается после ус
   const ids = [...notifyPending].filter(id => id in sent);
   if (!ids.length) return;
   ids.forEach(id => notifyPending.delete(id));
-  if (!ids.some(id => state.fam.items.some(i => i.id === id && !i.done))) return;
+  if (!ids.some(id => state.fam.items.some(i => i.id === id && !i.done) || state.fam.tasks.some(x => x.id === id && !x.done))) return;
   const info = pushInfo();
   fetch(PUSH_URL + '/notify', { method: 'POST', body: JSON.stringify({ list: state.sync.id, from: info && info.list === state.sync.id ? info.h : '' }) }).catch(() => {});
 }
@@ -1517,7 +1611,7 @@ async function sendCtx() {
   if (!PUSH_URL || !('serviceWorker' in navigator)) return;
   try {
     const reg = await navigator.serviceWorker.ready;
-    if (reg.active) reg.active.postMessage({ type: 'ctx', db: SYNC_URL, list: state.sync.id, me: state.me, seen: state.fam.items.map(i => i.id) });
+    if (reg.active) reg.active.postMessage({ type: 'ctx', db: SYNC_URL, list: state.sync.id, me: state.me, dev: devId(), seen: state.fam.items.map(i => i.id), seenT: state.fam.tasks.map(x => x.id) });
   } catch (e) {}
 }
 
@@ -1599,7 +1693,7 @@ async function handleJoinLink() {
 $('#add').addEventListener('submit', e => {
   e.preventDefault();
   const input = $('#item');
-  if (addItem(input.value)) { input.value = ''; updatePreview(); }
+  if (tab === 'tasks' ? addTask(input.value) : addItem(input.value)) { input.value = ''; updatePreview(); }
   input.focus();
 });
 $('#item').addEventListener('input', updatePreview);
@@ -1615,13 +1709,9 @@ $('#acts').addEventListener('click', e => {
   if (b.dataset.act === 'share') shareList();
   else if (b.dataset.act === 'stores') openStores(false);
   else if (b.dataset.act === 'syncinvite') inviteShare();
-  else if (b.dataset.act === 'members') { const m = $('#members'); if (m) m.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-  else if (b.dataset.act === 'newrecipe') openRecipeEdit(null);
 });
 
 $('#list').addEventListener('click', async e => {
-  const rec = e.target.closest('[data-recipe]');
-  if (rec) { openRecipe(rec.dataset.recipe); return; }
   const act = e.target.closest('[data-act]');
   if (act) {
     const a = act.dataset.act;
@@ -1629,8 +1719,10 @@ $('#list').addEventListener('click', async e => {
     else if (a === 'clear') clearDone();
     else if (a === 'claim') toggleClaim(act.closest('.row').dataset.id);
     else if (a === 'tip') { try { localStorage.setItem(TIP_KEY, '1'); } catch (x) {} renderList(); }
-    else if (a === 'newrecipe') openRecipeEdit(null);
-    else if (a === 'readd') readd(act.dataset.name, act.dataset.store);
+    else if (a === 'gofamily') setTab('family');
+    else if (a === 'tedit') openTask(act.closest('.row').dataset.id);
+    else if (a === 'tclaim') toggleTaskClaim(act.closest('.row').dataset.id);
+    else if (a === 'tclear') clearDoneTasks();
     else if (a === 'theme') { state.theme = act.dataset.v; save(); render(); }
     else if (a === 'skin') { if (SKINS[act.dataset.v]) { state.skin = act.dataset.v; save(); render(); } }
     else if (a === 'export') exportData();
@@ -1638,18 +1730,15 @@ $('#list').addEventListener('click', async e => {
     else if (a === 'pushtoggle') togglePush();
     else if (a.startsWith('sync')) syncAction(a);
     else if (a === 'import') $('#importFile').click();
-    else if (a === 'clearhist') {
-      if (!state.log.length) { toast('История уже пуста'); return; }
-      snapshot(); state.log = []; save(); render(); toast('История очищена', true);
-    } else if (a === 'wipe') {
-      if (await ask('Удалить все данные?', 'Личный список, магазины, рецепты и история будут удалены с этого телефона. Семейный список не затрагивается. Сразу после удаления это можно отменить.', 'Удалить')) {
+    else if (a === 'wipe') {
+      if (await ask('Удалить все данные?', 'Личный список и магазины будут удалены с этого телефона. Семья, покупки и дела не затрагиваются. Сразу после удаления это можно отменить.', 'Удалить')) {
         snapshot(); replaceState(normalize({ theme: state.theme, skin: state.skin })); save(); render(); toast('Все данные удалены', true);
       }
     }
     return;
   }
   const row = e.target.closest('.row');
-  if (row) toggle(row.dataset.id, row);
+  if (row) { if (row.classList.contains('task')) toggleTask(row.dataset.id, row); else toggle(row.dataset.id, row); }
 });
 
 $('#filters').addEventListener('click', e => {
@@ -1666,6 +1755,8 @@ $('#pick').addEventListener('click', e => {
   if (!b) return;
   if (b.dataset.act === 'newstore') { openStores(true); return; }
   if (b.dataset.store) { pick = pick === b.dataset.store ? null : b.dataset.store; renderPick(); }
+  else if ('to' in b.dataset) { taskTo = b.dataset.to; renderPick(); }
+  else if (b.dataset.due) { taskDue = taskDue === b.dataset.due ? '' : b.dataset.due; renderPick(); }
 });
 
 $('#undo').addEventListener('click', () => {
@@ -1757,6 +1848,36 @@ $('#storeList').addEventListener('change', e => {
 });
 $('#storesDone').addEventListener('click', () => storesDlg.close());
 
+/* лист «Дело» */
+$('#tTo').addEventListener('click', e => {
+  const b = e.target.closest('[data-to]');
+  if (!b) return;
+  editTaskTo = b.dataset.to;
+  renderTaskTo();
+});
+$('#taskForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const t = state.fam.tasks.find(x => x.id === editTaskId);
+  if (t) {
+    const title = $('#tTitle').value.trim().replace(/\s+/g, ' ');
+    if (title) t.title = title.slice(0, 100);
+    t.to = editTaskTo;
+    t.due = /^\d{4}-\d{2}-\d{2}$/.test($('#tDue').value) ? $('#tDue').value : '';
+    touch(t, state.fam);
+    save(); render();
+  }
+  taskDlg.close();
+});
+$('#tDel').addEventListener('click', () => {
+  const t = state.fam.tasks.find(x => x.id === editTaskId);
+  if (!t) { taskDlg.close(); return; }
+  snapshot(true);
+  kill(editTaskId, state.fam);
+  save(); render();
+  taskDlg.close();
+  toast(`Удалено: ${t.title}`, true);
+});
+
 /* лист «Имя» */
 $('#nameForm').addEventListener('submit', e => {
   e.preventDefault();
@@ -1782,49 +1903,8 @@ $('#joinForm').addEventListener('submit', e => {
   if (!state.me) openName();
 });
 
-/* лист «Рецепт» */
-$('#rIngs').addEventListener('change', updateRecipeBtn);
-$('#rEdit').addEventListener('click', () => { const id = recipeId; recipeDlg.close(); openRecipeEdit(id); });
-$('#rAdd').addEventListener('click', () => {
-  const r = state.recipes.find(x => x.id === recipeId);
-  if (!r) { recipeDlg.close(); return; }
-  const ing = parseIngredients(r.text);
-  let added = 0, dups = 0;
-  $$('#rIngs input:checked').forEach(cb => {
-    const x = ing[+cb.dataset.i];
-    if (!x) return;
-    const res = createItem(x.name, null, x.qty);
-    if (res.ok) added++; else if (res.dup) dups++;
-  });
-  recipeDlg.close();
-  if (!added && !dups) return;
-  save();
-  tab = 'list'; $('#main').scrollTop = 0; render();
-  toast(added ? `Добавлено в список: ${added}` + (dups ? `, уже были: ${dups}` : '') : 'Всё это уже в списке');
-});
-$('#recipeForm').addEventListener('submit', e => {
-  e.preventDefault();
-  const title = $('#reTitle').value.trim().replace(/\s+/g, ' ');
-  if (!title) return;
-  const text = $('#reText').value.replace(/\r/g, '').trim();
-  const r = state.recipes.find(x => x.id === recipeEditId);
-  if (r) { r.title = title; r.text = text; }
-  else state.recipes.unshift({ id: uid(), title, text });
-  save(); render();
-  recipeEditDlg.close();
-});
-$('#reDel').addEventListener('click', () => {
-  const r = state.recipes.find(x => x.id === recipeEditId);
-  if (!r) { recipeEditDlg.close(); return; }
-  snapshot();
-  state.recipes = state.recipes.filter(x => x.id !== recipeEditId);
-  save(); render();
-  recipeEditDlg.close();
-  toast(`Рецепт «${r.title}» удалён`, true);
-});
-
 /* закрытие листа по тапу на фон */
-[editDlg, storesDlg, recipeDlg, recipeEditDlg, confirmDlg, joinDlg, nameDlg].forEach(d =>
+[taskDlg, editDlg, storesDlg, confirmDlg, joinDlg, nameDlg].forEach(d =>
   d.addEventListener('click', e => { if (e.target === d) d.close(); }));
 
 /* ---------- клавиатура: поведение iOS по умолчанию, без пересчёта размеров ---------- */
@@ -1842,7 +1922,10 @@ $('#item').addEventListener('blur', () => setTimeout(() => {
 }, 150));
 
 /* ---------- запуск ---------- */
-if (location.hash === '#family') { history.replaceState(null, '', location.pathname + location.search); tab = 'family'; }
+{
+  const ht = { '#family': 'shop', '#shop': 'shop', '#tasks': 'tasks' }[location.hash];   // ссылки из уведомлений
+  if (ht) { history.replaceState(null, '', location.pathname + location.search); tab = ht; }
+}
 applyTheme();
 render();
 startSync();
@@ -1856,7 +1939,11 @@ window.addEventListener('offline', () => { if (syncActive()) setSyncState('offli
 if ('serviceWorker' in navigator) {
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) location.reload(); });
-  navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'open-family') setTab('family'); });
+  navigator.serviceWorker.addEventListener('message', e => {
+    const d = e.data || {};
+    if (d.type === 'open-family') setTab('shop');
+    else if (d.type === 'open-tab' && ['shop', 'tasks', 'family'].includes(d.tab)) setTab(d.tab);
+  });
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').then(() => sendCtx()).catch(() => {}));
 }
 })();
