@@ -16,7 +16,7 @@
 <style>
 :root{
   --bg:#F3F1FA; --surface:#FFFFFF; --ink:#1E1B3A; --muted:#6F6C8C;
-  --line:#E4E0F3; --chip:#E8E4F6; --accent:#E5472E;
+  --line:#E4E0F3; --chip:#E8E4F6; --accent:#E5472E; --on-accent:#FFFFFF; --toast-accent:#FF8A73; --danger:#E5472E;
   --font:ui-rounded,"SF Pro Rounded",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
 @media (prefers-color-scheme:dark){
@@ -91,7 +91,7 @@ ul{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:22
 .rrow>div{flex:1;min-width:0}
 .cnt{flex:none;min-width:30px;height:30px;padding:0 9px;border-radius:15px;background:var(--chip);display:grid;place-items:center;font-size:14px;font-weight:700;color:var(--muted)}
 .arow{display:block;width:100%;min-height:64px;padding:12px 16px;border:0;background:transparent;text-align:left}
-.arow.danger .nm{color:var(--accent)}
+.arow.danger .nm{color:var(--danger)}
 .foot{margin:0 4px 12px}
 
 .empty{padding:56px 24px;text-align:center}
@@ -113,7 +113,7 @@ ul{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:22
 .field:focus-within{box-shadow:0 0 0 2px var(--accent),0 10px 24px -14px rgba(30,27,58,.45)}
 .field input{flex:1;min-width:0;height:46px;border:0;outline:0;background:transparent;color:var(--ink);font:600 17px var(--font)}
 .field input::placeholder{color:var(--muted);font-weight:500}
-.addbtn{flex:none;width:46px;height:46px;border:0;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center}
+.addbtn{flex:none;width:46px;height:46px;border:0;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center}
 .addbtn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
 
 .tabbar{display:flex;gap:2px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line)}
@@ -131,7 +131,7 @@ ul{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:22
   opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .2s,transform .2s;z-index:5}
 .toast.show{opacity:1;transform:none;pointer-events:auto}
 .toast span{flex:1;min-width:0}
-.toast button{border:0;background:transparent;color:#FF8A73;font-weight:800;font-size:15px;min-height:40px;padding:0 12px;border-radius:99px}
+.toast button{border:0;background:transparent;color:var(--toast-accent);font-weight:800;font-size:15px;min-height:40px;padding:0 12px;border-radius:99px}
 
 /* sheets */
 dialog{border:0;padding:0;width:100%;max-width:640px;max-height:90dvh;margin:auto auto 0;overflow:auto;
@@ -147,8 +147,8 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 20px}
 .actions{display:flex;gap:10px}
 .btn{height:52px;border:0;border-radius:26px;padding:0 22px;font-size:17px;font-weight:700;background:var(--chip)}
-.btn.primary{flex:1;background:var(--accent);color:#fff}
-.btn.danger{color:var(--accent)}
+.btn.primary{flex:1;background:var(--accent);color:var(--on-accent)}
+.btn.danger{color:var(--danger)}
 .btn:disabled{opacity:.5}
 .sheet .text{margin:0 0 20px;color:var(--muted);font-size:16px;line-height:1.45;font-weight:500}
 .srow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
@@ -169,8 +169,21 @@ dialog::backdrop{background:rgba(20,18,42,.55)}
 .sdot{display:inline-block;width:9px;height:9px;margin-right:8px;border-radius:50%;background:#8C89AB}
 .sdot.online{background:#2E8B57}
 .claim{display:block;width:max-content;margin-top:6px;min-height:32px;padding:0 13px;border:0;border-radius:99px;background:var(--chip);color:var(--muted);font-size:13px;font-weight:700}
-.claim.mine{background:var(--accent);color:#fff}
+.claim.mine{background:var(--accent);color:var(--on-accent)}
 .claim.other{background:var(--ink);color:var(--bg)}
+/* дизайны: цвета для светлого и тёмного режимов */
+:root[data-skin=mint]{--bg:#EEF7F1;--surface:#FFFFFF;--ink:#16302A;--muted:#5F7B72;--line:#D9EBE1;--chip:#DDEFE5;--accent:#168A5A;--on-accent:#FFFFFF;--toast-accent:#5EE0A8}
+@media (prefers-color-scheme:dark){:root[data-skin=mint]:not([data-theme=light]){--bg:#0F1F1A;--surface:#172B24;--ink:#E8F6EE;--muted:#8DB0A2;--line:#24413A;--chip:#1F3A31;--accent:#3DD598;--on-accent:#072A1C;--toast-accent:#0E7A4E}}
+:root[data-skin=mint][data-theme=dark]{--bg:#0F1F1A;--surface:#172B24;--ink:#E8F6EE;--muted:#8DB0A2;--line:#24413A;--chip:#1F3A31;--accent:#3DD598;--on-accent:#072A1C;--toast-accent:#0E7A4E}
+:root[data-skin=sea]{--bg:#EAF2FB;--surface:#FFFFFF;--ink:#13264A;--muted:#5C7090;--line:#D5E3F4;--chip:#DCE8F7;--accent:#2563EB;--on-accent:#FFFFFF;--toast-accent:#8DB8FF}
+@media (prefers-color-scheme:dark){:root[data-skin=sea]:not([data-theme=light]){--bg:#0B1730;--surface:#132447;--ink:#E6EEFF;--muted:#8DA3CB;--line:#213762;--chip:#1A2D55;--accent:#5B9BFF;--on-accent:#04122E;--toast-accent:#2250C8}}
+:root[data-skin=sea][data-theme=dark]{--bg:#0B1730;--surface:#132447;--ink:#E6EEFF;--muted:#8DA3CB;--line:#213762;--chip:#1A2D55;--accent:#5B9BFF;--on-accent:#04122E;--toast-accent:#2250C8}
+:root[data-skin=sunset]{--bg:#FBEFF4;--surface:#FFFFFF;--ink:#3A1830;--muted:#86617A;--line:#F3DCE7;--chip:#F6E1EC;--accent:#D6246E;--on-accent:#FFFFFF;--toast-accent:#FF9CC2}
+@media (prefers-color-scheme:dark){:root[data-skin=sunset]:not([data-theme=light]){--bg:#241022;--surface:#341A31;--ink:#FFE9F3;--muted:#C79BB5;--line:#4A2745;--chip:#3F2039;--accent:#FF6FA5;--on-accent:#3A0A22;--toast-accent:#C01A5E}}
+:root[data-skin=sunset][data-theme=dark]{--bg:#241022;--surface:#341A31;--ink:#FFE9F3;--muted:#C79BB5;--line:#4A2745;--chip:#3F2039;--accent:#FF6FA5;--on-accent:#3A0A22;--toast-accent:#C01A5E}
+:root[data-skin=forest]{--bg:#EEF3E6;--surface:#FFFFFF;--ink:#1B2B16;--muted:#66775C;--line:#DBE5CE;--chip:#E1EAD3;--accent:#4F7A0F;--on-accent:#FFFFFF;--toast-accent:#E4F04A}
+@media (prefers-color-scheme:dark){:root[data-skin=forest]:not([data-theme=light]){--bg:#0F1A12;--surface:#17261B;--ink:#EAF4DF;--muted:#9DB38F;--line:#263A2A;--chip:#1F3324;--accent:#E4F04A;--on-accent:#1B2A05;--toast-accent:#4F7A0F}}
+:root[data-skin=forest][data-theme=dark]{--bg:#0F1A12;--surface:#17261B;--ink:#EAF4DF;--muted:#9DB38F;--line:#263A2A;--chip:#1F3324;--accent:#E4F04A;--on-accent:#1B2A05;--toast-accent:#4F7A0F}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -327,6 +340,14 @@ const PUSH_KEY = 'produkty.push';
 const TIP_KEY = 'produkty.tip';
 const PALETTE = ['#E5472E', '#F0A010', '#2E8B57', '#3C5BD9', '#9B4FC9', '#E8648A', '#14A3A3', '#7B6A58'];
 const NONE_COLOR = '#8C89AB';
+// Дизайны: название, цвет образца, цвет строки состояния телефона (светлый и тёмный режим)
+const SKINS = {
+  default: { name: 'Классика', sw: '#E5472E', light: '#F3F1FA', dark: '#14122A' },
+  mint:    { name: 'Мята',     sw: '#168A5A', light: '#EEF7F1', dark: '#0F1F1A' },
+  sea:     { name: 'Море',     sw: '#2563EB', light: '#EAF2FB', dark: '#0B1730' },
+  sunset:  { name: 'Закат',    sw: '#D6246E', light: '#FBEFF4', dark: '#241022' },
+  forest:  { name: 'Лес',      sw: '#4F7A0F', light: '#EEF3E6', dark: '#0F1A12' }
+};
 const LOG_MAX = 500;
 const notifyPending = new Set();   // новые продукты семейного списка, о которых ещё не сообщили остальным
 
@@ -365,7 +386,7 @@ function normList(s) {
   return out;
 }
 function normalize(s) {
-  const out = { ...normList(s), log: [], recipes: [], theme: 'auto', me: '', sync: { id: null }, fam: normList(null) };
+  const out = { ...normList(s), log: [], recipes: [], theme: 'auto', skin: 'default', me: '', sync: { id: null }, fam: normList(null) };
   delete out.dead; delete out.dirty;          // личный список никуда не синхронизируется
   if (!s || typeof s !== 'object') return out;
   if (Array.isArray(s.log)) {
@@ -378,6 +399,7 @@ function normalize(s) {
       .map(x => ({ id: String(x.id), title: String(x.title).slice(0, 60), text: String(x.text || '').slice(0, 3000) }));
   }
   if (['auto', 'light', 'dark'].includes(s.theme)) out.theme = s.theme;
+  if (typeof s.skin === 'string' && Object.prototype.hasOwnProperty.call(SKINS, s.skin)) out.skin = s.skin;
   if (typeof s.me === 'string') out.me = s.me.slice(0, 20);
   if (s.sync && /^[a-z0-9]{20,40}$/.test(String(s.sync.id))) out.sync = { id: String(s.sync.id) };
   if (out.sync.id) {
@@ -443,13 +465,15 @@ function fixView() {
 function applyTheme() {
   const root = document.documentElement;
   const metas = $$('meta[name=theme-color]');
+  const sk = SKINS[state.skin] || SKINS.default;
+  if (state.skin && state.skin !== 'default') root.setAttribute('data-skin', state.skin); else root.removeAttribute('data-skin');
   if (state.theme === 'auto') {
     root.removeAttribute('data-theme');
-    if (metas[0]) metas[0].setAttribute('content', '#F3F1FA');
-    if (metas[1]) metas[1].setAttribute('content', '#14122A');
+    if (metas[0]) metas[0].setAttribute('content', sk.light);
+    if (metas[1]) metas[1].setAttribute('content', sk.dark);
   } else {
     root.setAttribute('data-theme', state.theme);
-    metas.forEach(m => m.setAttribute('content', state.theme === 'dark' ? '#14122A' : '#F3F1FA'));
+    metas.forEach(m => m.setAttribute('content', state.theme === 'dark' ? sk.dark : sk.light));
   }
 }
 
@@ -738,7 +762,9 @@ function renderHistory() {
 function renderSettings() {
   const themes = [['auto', 'Как в системе'], ['light', 'Светлая'], ['dark', 'Тёмная']];
   $('#list').innerHTML = `<section class="group"><h2>Оформление</h2><div class="chips">${themes.map(([v, l]) =>
-      `<button class="chip" type="button" data-act="theme" data-v="${v}" aria-pressed="${state.theme === v}">${l}</button>`).join('')}</div></section>
+      `<button class="chip" type="button" data-act="theme" data-v="${v}" aria-pressed="${state.theme === v}">${l}</button>`).join('')}</div>
+      <div class="chips">${Object.entries(SKINS).map(([k, v]) =>
+      `<button class="chip" type="button" data-act="skin" data-v="${k}" style="--c:${v.sw}" aria-pressed="${state.skin === k}"><i class="dot"></i>${v.name}</button>`).join('')}</div></section>
     <section class="group"><h2>Данные</h2><ul>
       <li><button class="arow" type="button" data-act="export"><span class="nm">Сохранить копию</span><span class="qty">Файл с личным списком, рецептами и историей. Сохраните его в «Файлы» или отправьте себе.</span></button></li>
       <li><button class="arow" type="button" data-act="import"><span class="nm">Восстановить из копии</span><span class="qty">Выберите сохранённый файл. Текущие данные будут заменены.</span></button></li>
@@ -1468,6 +1494,7 @@ $('#list').addEventListener('click', async e => {
     else if (a === 'newrecipe') openRecipeEdit(null);
     else if (a === 'readd') readd(act.dataset.name, act.dataset.store);
     else if (a === 'theme') { state.theme = act.dataset.v; save(); render(); }
+    else if (a === 'skin') { if (SKINS[act.dataset.v]) { state.skin = act.dataset.v; save(); render(); } }
     else if (a === 'export') exportData();
     else if (a === 'pushtoggle') togglePush();
     else if (a.startsWith('sync')) syncAction(a);
@@ -1477,7 +1504,7 @@ $('#list').addEventListener('click', async e => {
       snapshot(); state.log = []; save(); render(); toast('История очищена', true);
     } else if (a === 'wipe') {
       if (await ask('Удалить все данные?', 'Личный список, магазины, рецепты и история будут удалены с этого телефона. Семейный список не затрагивается. Сразу после удаления это можно отменить.', 'Удалить')) {
-        snapshot(); replaceState(normalize({ theme: state.theme })); save(); render(); toast('Все данные удалены', true);
+        snapshot(); replaceState(normalize({ theme: state.theme, skin: state.skin })); save(); render(); toast('Все данные удалены', true);
       }
     }
     return;
