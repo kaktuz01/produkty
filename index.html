@@ -136,6 +136,12 @@ ul{list-style:none;margin:0;padding:0;background:var(--surface);border-radius:va
 .toast span{flex:1;min-width:0}
 .toast button{border:0;background:transparent;color:var(--toast-accent);font-weight:800;font-size:15px;min-height:40px;padding:0 12px;border-radius:99px}
 
+.mrow{display:flex;align-items:center;gap:14px;width:100%;min-height:64px;padding:8px 16px;border:0;background:transparent;text-align:left;font:inherit;color:inherit}
+.mrow>div{flex:1;min-width:0}
+.mrow small{color:var(--muted);font-size:14px;font-weight:600}
+.ava{flex:none;width:40px;height:40px;border-radius:50%;background:var(--c);color:#fff;display:grid;place-items:center;font-weight:800;font-size:18px}
+.mrow .sdot{margin-right:6px}
+
 /* sheets */
 dialog{border:0;padding:0;width:100%;max-width:640px;max-height:90dvh;margin:auto auto 0;overflow:auto;
   border-radius:var(--rd,28px) var(--rd,28px) 0 0;background:var(--bg);color:var(--ink);font-family:var(--font)}
@@ -360,6 +366,7 @@ const SYNC_URL = 'https://produkty-sync-default-rtdb.europe-west1.firebasedataba
 const PUSH_URL = 'https://produkty-push.ivan-gurin-08.workers.dev';
 const PUSH_KEY = 'produkty.push';
 const TIP_KEY = 'produkty.tip';
+const DEV_KEY = 'produkty.dev';
 const PALETTE = ['#E5472E', '#F0A010', '#2E8B57', '#3C5BD9', '#9B4FC9', '#E8648A', '#14A3A3', '#7B6A58'];
 const NONE_COLOR = '#8C89AB';
 // Дизайны: название, цвет образца, цвет строки состояния телефона (светлый и тёмный режим)
@@ -390,7 +397,7 @@ const colorOk = c => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c);
 let state = load();
 let tab = 'list';
 let pick = null;               // магазин, выбранный в строке ввода (не сохраняется)
-let famUnread = 0, ctxTimer = 0, undoSnap = null, toastTimer = 0, renderTimer = 0;
+let members = {}, famUnread = 0, ctxTimer = 0, undoSnap = null, toastTimer = 0, renderTimer = 0;
 let es = null, pushTimer = 0, pushing = false, syncState = 'off', retryTimer = 0, rsTimer = 0, lastTouch = 0, quietUntil = 0, syncErr = '', pendingClaim = null, afterName = null;
 let fromComposer = false, editingId = null, editStore = null, recipeId = null, recipeEditId = null;
 
@@ -533,6 +540,7 @@ const ICONS = {
   share: '<svg viewBox="0 0 24 24"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>',
   bag: '<svg viewBox="0 0 24 24"><path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>',
   newrecipe: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  people: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1"/><circle cx="17" cy="9" r="2.4"/><path d="M17 14a4 4 0 0 1 4 4v2"/></svg>',
   invite: '<svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.5"/><path d="M3 20a7 7 0 0 1 14 0M19 8v6M16 11h6"/></svg>'
 };
 const TITLES = { list: 'Продукты', family: 'Семья', recipes: 'Рецепты', history: 'История', settings: 'Настройки' };
@@ -567,7 +575,7 @@ function renderChrome() {
     stats = total ? `Осталось ${total - done}, куплено ${done}` : (tab === 'family' ? 'Семейный список пока пуст' : 'Список пока пуст');
     $('#bar').style.width = total ? (done / total * 100) + '%' : '0%';
     acts = tab === 'family'
-      ? `<button class="iconbtn" data-act="syncinvite" aria-label="Пригласить в семейный список">${ICONS.invite}</button>`
+      ? `<button class="iconbtn" data-act="members" aria-label="Кто в семье">${ICONS.people}</button><button class="iconbtn" data-act="syncinvite" aria-label="Пригласить в семейный список">${ICONS.invite}</button>`
       : `<button class="iconbtn" data-act="share" aria-label="Поделиться списком">${ICONS.share}</button>`;
     acts += `<button class="iconbtn" data-act="stores" aria-label="Магазины">${ICONS.bag}</button>`;
   } else if (tab === 'family') {
@@ -646,8 +654,57 @@ function renderFamilyIntro() {
     <button class="btn primary" type="button" data-act="syncnew">Создать семейный список</button>
     <button class="btn" type="button" data-act="syncjoin">Подключиться по коду</button></div>`;
 }
+/* участники семьи: каждый телефон отмечается в списке и обновляет «был в сети» */
+function devId() {
+  try {
+    let d = localStorage.getItem(DEV_KEY);
+    if (!d) { d = uid() + Math.random().toString(36).slice(2, 6); localStorage.setItem(DEV_KEY, d); }
+    return d;
+  } catch (e) { return 'tmp' + (devId.tmp = devId.tmp || Math.random().toString(36).slice(2, 10)); }
+}
+const hashColor = id => { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; };
+function seenLabel(u) {
+  return `${dayLabel(u).toLowerCase()} в ${timeLabel(u)}`;
+}
+function membersHtml() {
+  const me = devId(), t = Date.now();
+  const all = { ...members, [me]: { n: state.me, u: t } };
+  const list = Object.entries(all)
+    .filter(([id, m]) => id === me || t - m.u < 45 * 864e5)
+    .sort((a, b) => (a[0] === me ? -1 : b[0] === me ? 1 : 0) || (b[1].u - a[1].u));
+  const rows = list.map(([id, m]) => {
+    const self = id === me;
+    const name = m.n || 'Без имени';
+    const on = self ? syncState === 'online' : t - m.u < 150000;
+    const status = on ? '<i class="sdot online"></i>в сети'
+      : (self ? 'Нет связи' : 'Был(а) в сети: ' + esc(seenLabel(m.u)));
+    const inner = `<span class="ava" style="--c:${hashColor(id)}">${esc(name[0].toUpperCase())}</span>
+      <div><span class="nm">${esc(name)}${self ? ' <small>(вы)</small>' : ''}</span><span class="qty">${status}</span></div>`;
+    return self
+      ? `<li><button class="mrow" type="button" data-act="syncname" aria-label="Изменить своё имя">${inner}</button></li>`
+      : `<li><div class="mrow">${inner}</div></li>`;
+  }).join('');
+  return `<h2>Участники<small>${list.length}</small></h2><ul>${rows}</ul>`;
+}
+function updateMembers() {
+  const el = $('#members');
+  if (el && !document.querySelector('dialog[open]')) el.innerHTML = membersHtml();
+}
+async function beat() {
+  if (!syncActive()) return;
+  try {
+    await fetch(`${SYNC_URL}/lists/${state.sync.id}/members/${devId()}.json`, { method: 'PUT', body: JSON.stringify({ n: state.me || '', u: Date.now() }) });
+  } catch (e) {}
+}
+function leaveMembers(listId) {
+  if (!listId) return;
+  try { fetch(`${SYNC_URL}/lists/${listId}/members/${devId()}.json`, { method: 'DELETE', keepalive: true }).catch(() => {}); } catch (e) {}
+}
+setInterval(() => { if (document.visibilityState === 'visible') { beat(); updateMembers(); } }, 60000);
+
 function famPanel() {
-  return `<section class="group"><h2>Семейный список</h2><ul>
+  return `<section class="group" id="members">${membersHtml()}</section>
+  <section class="group"><h2>Семейный список</h2><ul>
     <li><button class="arow" type="button" data-act="syncname"><span class="nm">Ваше имя: ${esc(state.me || 'не указано')}</span><span class="qty">Его видят остальные: кто добавил и кто купит.</span></button></li>
     <li><div class="arow"><span class="nm" id="syncStatus">${esc(syncStatusText())}</span><span class="qty">Продукты и магазины обновляются сразу у всех. Без связи изменения отправятся позже.</span></div></li>
     ${pushRow()}
@@ -1192,7 +1249,7 @@ function startSync() {
   let src;
   try { src = new EventSource(listUrl()); } catch (e) { setSyncState('offline'); return; }
   es = src;
-  src.onopen = () => { setSyncState('online'); schedulePush(0); };
+  src.onopen = () => { setSyncState('online'); schedulePush(0); beat(); };
   src.onerror = () => {
     setSyncState('offline');
     if (src.readyState === 2) retryTimer = setTimeout(startSync, 10000);   // соединение закрыто совсем
@@ -1240,6 +1297,19 @@ function applyRemote(snap, full) {
     }
   }
   const okId = id => /^[\w-]{1,40}$/.test(id);
+  let membersChanged = false;
+  if (full) { members = {}; membersChanged = true; }
+  if (snap.members && typeof snap.members === 'object') {
+    for (const [id, r] of Object.entries(snap.members)) {
+      if (!okId(id)) continue;
+      if (!r || typeof r !== 'object') { if (members[id]) { delete members[id]; membersChanged = true; } continue; }
+      const next = { n: String(r.n || '').slice(0, 20), u: Number(r.u) || 0 };
+      const prev = members[id];
+      if (!prev || prev.n !== next.n || Math.abs(prev.u - next.u) > 1) membersChanged = true;
+      if (!prev && !full && next.n && id !== devId() && Date.now() >= quietUntil) toast(`Новый участник: ${next.n}`, false, 4000);
+      members[id] = next;
+    }
+  }
   for (const [id, r] of Object.entries(snap.stores || {})) {
     if (!r || typeof r !== 'object' || !okId(id)) continue;
     const u = Number(r.u) || 0;
@@ -1277,6 +1347,7 @@ function applyRemote(snap, full) {
     }
   }
   if (dedupe()) changed = true;           // в списке не бывает двух одинаковых продуктов и магазинов
+  if (membersChanged && tab === 'family') updateMembers();
   if (changed) { saveLocal(); renderSoon(); ctxSoon(); }
   if (full || changed) schedulePush(300);
 }
@@ -1447,6 +1518,8 @@ async function inviteShare() {
   } catch (e) { /* закрыли меню */ }
 }
 function joinList(id) {
+  if (state.sync.id && state.sync.id !== id) leaveMembers(state.sync.id);
+  members = {};
   state.sync = { id };
   state.fam = normList(null);
   quietUntil = Date.now() + 2000;         // сразу после подключения не сыплем сообщениями о «новых» продуктах
@@ -1471,6 +1544,7 @@ async function syncAction(a) {
     inviteShare();
   } else if (a === 'syncoff') {
     if (await ask('Отключиться от семейного списка?', 'Он пропадёт с этого телефона, у остальных останется. Подключиться снова можно по коду. Ваш личный список не изменится.', 'Отключиться')) {
+      leaveMembers(state.sync.id); members = {};
       stopSync(); state.sync = { id: null }; state.fam = normList(null); saveLocal(); render();
       disablePush(); ctxSoon();
       toast('Семейный список отключён');
@@ -1514,6 +1588,7 @@ $('#acts').addEventListener('click', e => {
   if (b.dataset.act === 'share') shareList();
   else if (b.dataset.act === 'stores') openStores(false);
   else if (b.dataset.act === 'syncinvite') inviteShare();
+  else if (b.dataset.act === 'members') { const m = $('#members'); if (m) m.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   else if (b.dataset.act === 'newrecipe') openRecipeEdit(null);
 });
 
@@ -1659,7 +1734,7 @@ $('#nameForm').addEventListener('submit', e => {
   e.preventDefault();
   const v = $('#who').value.trim().replace(/\s+/g, ' ').slice(0, 20);
   if (!v) return;
-  state.me = v; saveLocal(); ctxSoon();
+  state.me = v; saveLocal(); ctxSoon(); beat();
   const pc = pendingClaim; pendingClaim = null;
   nameDlg.close();
   if (pc) toggleClaim(pc);
@@ -1744,7 +1819,10 @@ applyTheme();
 render();
 startSync();
 handleJoinLink();
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && syncActive()) startSync(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && syncActive()) startSync();
+  else if (document.visibilityState === 'hidden') beat();
+});
 window.addEventListener('online', () => { if (syncActive()) startSync(); });
 window.addEventListener('offline', () => { if (syncActive()) setSyncState('offline'); });
 if ('serviceWorker' in navigator) {
